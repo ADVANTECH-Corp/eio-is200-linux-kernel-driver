@@ -10,9 +10,9 @@
 ```
 - To uninstall the EIOIS200 driver, use the following "make" commands:
 ```bash
-  root# sudo make unload          # Unload module
+  root# sudo make unload     # Unload module
   root# sudo make uninstall  # Uninstall driver module
-  root# make clean      # Clean *.ko files
+  root# make clean           # Clean *.ko files
 ```
 
 ### example.sh
