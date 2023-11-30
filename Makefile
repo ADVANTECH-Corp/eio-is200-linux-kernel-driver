@@ -28,7 +28,7 @@ install:
 	install -D -m 644 drivers/mfd/eiois200_core.ko $(DRVPATH)/mfd/eiois200_core.ko
 	install -D -m 644 drivers/watchdog/eiois200_wdt.ko $(DRVPATH)/watchdog/eiois200_wdt.ko
 	install -D -m 644 drivers/hwmon/eiois200-hwmon.ko $(DRVPATH)/hwmon/eiois200-hwmon.ko
-	install -D -m 644 drivers/thermal/eiois200_thermal.ko $(DRVPATH)/thermal/eiois200_thermal.ko
+#	install -D -m 644 drivers/thermal/eiois200_thermal.ko $(DRVPATH)/thermal/eiois200_thermal.ko
 	install -D -m 644 drivers/thermal/eiois200_fan.ko $(DRVPATH)/thermal/eiois200_fan.ko
 	install -D -m 644 drivers/video/backlight/eiois200_bl.ko $(DRVPATH)/video/backlight/eiois200_bl.ko
 	install -D -m 644 drivers/gpio/gpio-eiois200.ko $(DRVPATH)/gpio/gpio-eiois200.ko
@@ -40,7 +40,7 @@ uninstall:
 	- rm -rf $(DRVPATH)/mfd/eiois200_core.ko
 	- rm -rf $(DRVPATH)/watchdog/eiois200_wdt.ko
 	- rm -rf $(DRVPATH)/hwmon/eiois200-hwmon.ko
-	- rm -rf $(DRVPATH)/thermal/eiois200_thermal.ko
+#	- rm -rf $(DRVPATH)/thermal/eiois200_thermal.ko
 	- rm -rf $(DRVPATH)/thermal/eiois200_fan.ko
 	- rm -rf $(DRVPATH)/video/backlight/eiois200_bl.ko
 	- rm -rf $(DRVPATH)/gpio/gpio-eiois200_wdt.ko
@@ -54,7 +54,7 @@ load:
 	- modprobe gpio-eiois200
 	- modprobe eiois200-hwmon
 	- modprobe eiois200_fan
-	- modprobe eiois200_thermal
+#	- modprobe eiois200_thermal
 	- modprobe i2c-eiois200
 	- modprobe eiois200_bl
 
@@ -64,7 +64,7 @@ unload:
 	- rmmod eiois200_wdt
 	- rmmod eiois200_hwmon
 	- rmmod eiois200_fan
-	- rmmod eiois200_thermal
+#	- rmmod eiois200_thermal
 	- rmmod eiois200_bl
 	- rmmod eiois200_core
 	
