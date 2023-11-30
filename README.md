@@ -4,13 +4,13 @@
 ### How to Install / Uninstall EIOIS200 Driver
 - To install the *.ko files, use the following "make" commands:
 ```bash
-  root# sudo make            # Build *.ko files
+  root# make                 # Build *.ko files
   root# sudo make install    # Install driver module
   root# sudo make load       # Load module
 ```
 - To uninstall the EIOIS200 driver, use the following "make" commands:
 ```bash
-  root# sudo make unload     # Unload module
+  root# make unload          # Unload module
   root# sudo make uninstall  # Uninstall driver module
   root# sudo make clean      # Clean *.ko files
 ```
