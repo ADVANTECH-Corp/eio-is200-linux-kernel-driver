@@ -1,8 +1,7 @@
 ccflags-y += -Wall -O2 -DDBG=0 -D_LINUX -D_KERNEL -Wframe-larger-than=1064
-ccflags-y += -I$(PWD)/include
+ccflags-y += -I$(PWD)/include -I$(CURDIR)/include -I /home/a/Desktop/test/eio-is200-linux-kernel-driver-main/include
 DRVPATH := /lib/modules/$(shell uname -r)/kernel/drivers
 DEPMOD := $(shell which depmod)
-ccflags-y += -I$(PWD)/include
 
 # If KERNELRELEASE is defined, we've been invoked from the
 # kernel build system and can use its language.
@@ -22,8 +21,8 @@ else
 # line; invoke the kernel build system.
 	KDIR := /lib/modules/$(shell uname -r)/build
 
-default:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+default:		
+	$(MAKE) modules -C $(KDIR) M=$(CURDIR)
 	
 install:
 	install -D -m 644 drivers/mfd/eiois200_core.ko $(DRVPATH)/mfd/eiois200_core.ko
@@ -69,9 +68,9 @@ unload:
 	- rmmod eiois200_bl
 	- rmmod eiois200_core
 	
-all:  default unload uninstall install load
+all:  clean default unload uninstall install load
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(CURDIR) clean
 
 endif
