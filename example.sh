@@ -11,7 +11,7 @@
 ################################################################################ 
 ######                      Global Value                                  ######
 ################################################################################
-ADV_DEBUG_INFO="1"	# Please change to "0", it only use for debug info print.					
+ADV_DEBUG_INFO="0"	# Please change to "0", it only use for debug info print.					
 SUSIDEMO4_VERSION=23426
 
 ################################################################################ 
