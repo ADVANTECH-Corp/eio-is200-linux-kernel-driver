@@ -1,7 +1,8 @@
 ccflags-y += -Wall -O2 -DDBG=0 -D_LINUX -D_KERNEL -Wframe-larger-than=1064
+ccflags-y += -I$(PWD)/include
 DRVPATH := /lib/modules/$(shell uname -r)/kernel/drivers
 DEPMOD := $(shell which depmod)
-PWD := $(shell pwd)
+ccflags-y += -I$(PWD)/include
 
 # If KERNELRELEASE is defined, we've been invoked from the
 # kernel build system and can use its language.
