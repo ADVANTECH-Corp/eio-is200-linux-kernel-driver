@@ -1,22 +1,29 @@
 ## EIO-IS200 Linux Kernel Driver
 > This is a series of device drivers for Advantech EIO-IS200 embedded controller based on Linux kernel 6.5.0
 
-### How to Install / Uninstall EIOIS200 Driver
-- To install the *.ko files, use the following "make" commands:
-```bash
-  root# make                 # Build *.ko files
-  root# sudo make install    # Install driver module
-  root# sudo make load       # Load module
-```
-- To uninstall the EIOIS200 driver, use the following "make" commands:
-```bash
-  root# sudo make unload     # Unload module
-  root# sudo make uninstall  # Uninstall driver module
-  root# make clean           # Clean *.ko files
-```
+## Get the source first.
+> Get it from Github repository with the following command in the Linux terminal.
 
-### example.sh
-- We have prepared an example to demonstrate how to use the EIOIS200 driver. Simply type "./example.sh" to execute it.
+```bash
+git clone git@github.com:ADVANTECH-Corpcd/eio-is200-linux-kernel-driver.git
+cd eio-is200-linux-kernel-driver
+```
+## Install
+> Run the following commands in the Linux terminal.
+```bash
+  make                 # Build *.ko files
+  sudo make install    # Install driver module
+  sudo make load       # Load module
+```
+## Uninstall
+> To uninstall the EIOIS200 driver, use the following "make" commands:
+```bash
+  sudo make unload     # Unload module
+  sudo make uninstall  # Uninstall driver module
+  make clean           # Clean *.ko files
+```
+## Example
+> We have prepared an example to demonstrate how to use the EIOIS200 driver. Simply type "./example.sh" to execute it.
 ```bash
 root# sudo ./example.sh
 ```
