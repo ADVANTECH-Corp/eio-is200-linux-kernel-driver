@@ -1,6 +1,14 @@
 ## EIO-IS200 Linux Kernel Driver
-> This is a series of device drivers for Advantech EIO-IS200 embedded controller based on Linux kernel 6.5.0
-
+> This is a series of device drivers for Advantech EIO-IS200 embedded controller based on Linux kernel 6.5.0 as follow:
+```
+MFD core: eiois200_core
+GPIO: gpio-eiois200
+Hardware monitor: eiois200-hwmon
+Fan: eiois200_fan
+I2C: i2c-eiois200
+Video backlight: eiois200_bl
+Watchdog: eiois200_wdt
+```
 ## Get the source first.
 > Get it from Github repository with the following command in the Linux terminal.
 
