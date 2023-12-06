@@ -30,6 +30,8 @@ cd eio-is200-linux-kernel-driver
   sudo make uninstall  # Uninstall driver module
   make clean           # Clean *.ko files
 ```
+
+
 ## Example
 > We have prepared an example to demonstrate how to use the EIOIS200 driver. Simply type "./example.sh" to execute it.
 ```bash
