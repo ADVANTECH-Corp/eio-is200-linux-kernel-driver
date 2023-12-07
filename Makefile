@@ -1,5 +1,5 @@
 ccflags-y += -Wall -O2 -DDBG=0 -D_LINUX -D_KERNEL -Wframe-larger-than=1064
-ccflags-y += -I$(PWD)/include -I$(CURDIR)/include -I /home/a/Desktop/test/eio-is200-linux-kernel-driver-main/include
+ccflags-y += -I$(PWD)/include -I$(CURDIR)/include 
 DRVPATH := /lib/modules/$(shell uname -r)/kernel/drivers
 DEPMOD := $(shell which depmod)
 
