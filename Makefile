@@ -43,8 +43,8 @@ uninstall:
 #	- rm -rf $(DRVPATH)/thermal/eiois200_thermal.ko
 	- rm -rf $(DRVPATH)/thermal/eiois200_fan.ko
 	- rm -rf $(DRVPATH)/video/backlight/eiois200_bl.ko
-	- rm -rf $(DRVPATH)/gpio/gpio-eiois200_wdt.ko
-	- rm -rf $(DRVPATH)/i2c/busses/i2c-eiois200_wdt.ko
+	- rm -rf $(DRVPATH)/gpio/gpio-eiois200.ko
+	- rm -rf $(DRVPATH)/i2c/busses/i2c-eiois200.ko
 	
 	- $(DEPMOD) -a
 	
