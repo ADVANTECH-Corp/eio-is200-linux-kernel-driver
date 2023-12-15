@@ -25,7 +25,9 @@ $(MODULE_NAME).mod.c: $(MODULE_NAME).ko
 $(MODULE_NAME).mod.o: $(MODULE_NAME).mod.c
 
 clean:
-	rm $(obj-m) $(MODULE_NAME).mod.c $(MODULE_NAME).mod.o $(MODULE_NAME).ko modules.order .$(MODULE_NAME)*.cmd $(MODULE_NAME).mod Module.symvers || true
+	rm $(obj-m) $(MODULE_NAME).mod.c $(MODULE_NAME).mod.o $(MODULE_NAME).ko \
+	modules.order .modules.order.cmd .Module.symvers.cmd .$(MODULE_NAME)*.cmd \
+	$(MODULE_NAME).mod Module.symvers || true
 
 install: module $(MODULE_NAME).mod.o
 	install -d "$(MODDIR)"
