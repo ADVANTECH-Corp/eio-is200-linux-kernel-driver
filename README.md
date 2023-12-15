@@ -10,7 +10,13 @@
   Watchdog: eiois200_wdt
 ```
 ## OS supported
-> These drivers have been verified on Linux kernel 5.15, 5.19, 6.2, 6.5.
+> These drivers have been verified on:
+ ```
+  Linux kernel 5.15.0.X
+  Linux kernel 5.19.0.X
+  Linux kernel 6.2.0.X
+  Linux kernel 6.5.0.X
+ ```
 ## Get the source first.
 > Get it from Github repository with the following command in the Linux terminal.
 
