@@ -9,7 +9,6 @@ INCLUDEDIR := /usr/local/include
 KDIR := /lib/modules/$(KVER)/build
 PWD := $(shell pwd)
 
-
 obj-m := $(MODULE_NAME).o
 
 src ?= $(PWD)
