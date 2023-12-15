@@ -7,8 +7,11 @@ reverse = $(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstwor
 REVMODS := $(call reverse,$(MODULES))
 
 all: $(MODULES)
-        
-$(MODULES):
+
+eiois200_core: 
+	$(MAKE) -C "$@"
+	
+$(filter-out eiois200_core,$(MODULES)): eiois200_core
 	$(MAKE) -C "$@"
 
 CLEANMODS := $(addprefix clean-,$(MODULES))
