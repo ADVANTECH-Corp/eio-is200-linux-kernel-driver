@@ -433,19 +433,25 @@ static int wdt_get_irq(struct device *dev)
 
 	/* Get IRQ number through PMC */
 	ret = wdt_get_irq_pmc();
-	if (ret)
-		return dev_err_probe(dev, ret, "Error get irq by pmc\n");
+	if (ret) {
+		dev_err(dev, "Error get irq by pmc\n");
+		return ret;
+	}
 
 	if (wdt.irq)
 		return 0;
 
 	/* Get IRQ number from the watchdog device in EC */
 	ret = wdt_get_irq_io();
-	if (ret)
-		return dev_err_probe(dev, ret, "Error get irq by io\n");
+	if (ret) {
+		dev_err(dev, "Error get irq by io\n");
+		return ret;
+	}
 
-	if (wdt.irq == 0)
-		return dev_err_probe(dev, ret, "Error IRQ number = 0\n");
+	if (wdt.irq == 0) {
+		dev_err(dev, "Error IRQ number = 0\n");
+		return ret;
+	}
 
 	return ret;
 }
@@ -497,15 +503,17 @@ static int wdt_set_irq(struct device *dev)
 
 	/* Set IRQ number to the watchdog device in EC */
 	ret = wdt_set_irq_io();
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Error set irq by io\n");
+	if (ret) {
+		dev_err(dev, "Error set irq by io\n");
+		return ret;
+	}
 
 	/* Notice EC that watchdog IRQ changed */
 	ret = wdt_set_irq_pmc();
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Error set irq by pmc\n");
+	if (ret) {
+		dev_err(dev, "Error set irq by pmc\n");
+		return ret;
+	}
 
 	return ret;
 }
@@ -603,34 +611,42 @@ static int wdt_probe(struct platform_device *pdev)
 
 	/* Contact eiois200_core */
 	eiois200_dev = dev_get_drvdata(dev->parent);
-	if (!eiois200_dev)
-		return dev_err_probe(dev, ret,
-				     "Error contact eiois200_core %d\n", ret);
+	if (!eiois200_dev) {
+		dev_err(dev, "Error contact eiois200_core %d\n", ret);
+		return -ENXIO;
+	}
 
 	wdt.dev = dev;
 	wdt.iomap = dev_get_regmap(dev->parent, NULL);
-	if (!wdt.iomap)
-		return dev_err_probe(dev, -ENOMEM, "Query parent regmap fail\n");
+	if (!wdt.iomap) {
+		dev_err(dev, "Query parent regmap fail\n");
+		return -ENOMEM;
+	}
 
 	/* Initialize EC watchdog */
-	if (wdt_init(dev))
-		return dev_err_probe(dev, -EIO, "wdt_init fail\n");
+	if (wdt_init(dev)) {
+		dev_err(dev, "wdt_init fail\n");
+		return -EIO;
+	}
 
 	/* Request IRQ */
 	if (wdt.event_type == EVENT_IRQ)
 		ret = devm_request_threaded_irq(dev, wdt.irq, wdt_isr,
 						wdt_threaded_isr,
 						IRQF_SHARED, pdev->name, dev);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				    "IRQ %d request fail:%d. Disabled.\n",
-				    wdt.irq, ret);
+	if (ret) {
+		dev_err(dev, "IRQ %d request fail:%d. Disabled.\n", 
+			wdt.irq, ret);
+		return ret;
+	}
 
 	/* Inform watchdog info */
 	wddev.ops = &wdt_ops;
 	ret = watchdog_init_timeout(&wddev, wddev.timeout, dev);
-	if (ret)
-		return dev_err_probe(dev, ret, "Init timeout fail\n");
+	if (ret) {
+		dev_err(dev, "Init timeout fail\n");
+		return ret;
+	}
 
 	watchdog_stop_on_reboot(&wddev);
 
@@ -638,10 +654,11 @@ static int wdt_probe(struct platform_device *pdev)
 
 	/* Register watchdog */
 	ret = devm_watchdog_register_device(dev, &wddev);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Cannot register watchdog device (err: %d)\n",
-				     ret);
+	if (ret) {
+		dev_err(dev, "Cannot register watchdog device (err: %d)\n", 
+			ret);
+		return ret;
+	}
 
 	return 0;
 }

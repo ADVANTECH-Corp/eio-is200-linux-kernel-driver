@@ -26,7 +26,7 @@
  * (PWM)|
  *  	|
  * High |............................. ______________
- *  	|			      /:
+ * (Max)|			      /:
  *  	|			     / :
  *  	|			    /  :
  *  	|			   /   :
@@ -46,6 +46,7 @@
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
+#include <linux/module.h>
 #include <linux/thermal.h>
 #include <linux/mfd/eiois200.h>
 
@@ -90,8 +91,13 @@
 #define FAN_ID(val)		(((long)(val)) >> 8)
 #define FAN_TRIP(val)		(((long)(val)) & 0x0F)
 
+#ifndef DECI_KELVIN_TO_MILLICELSIUS
 #define DECI_KELVIN_TO_MILLICELSIUS(t)	(((t) - 2731) * 100)
+#endif
+
+#ifndef MILLICELSIUS_TO_DECI_KELVIN
 #define MILLICELSIUS_TO_DECI_KELVIN(t)	((t) / 100 + 2731)
+#endif
 
 #define FAN_WRITE(dev, ctl, id, data) \
 	pmc_cmd(dev, CMD_FAN_WRITE, ctl, id, pmc_len[ctl], data)
@@ -149,7 +155,7 @@ static ssize_t set_max_state_store(struct device *dev,
 	if (ret)
 		dev_err(dev, "Write cooling device max state error: %d\n", ret);
 
-//	thermal_cooling_device_update(cdev);
+//	thermal_cooling_device_update(cdev)
 
 	return count;
 }
@@ -198,12 +204,6 @@ static int get_temp(struct thermal_zone_device *zone, int *temp)
 	return ret;
 }
 
-static int change_mode(struct thermal_zone_device *zone,
-		       enum thermal_device_mode mode)
-{
-	return 0;
-}
-
 static int get_trip_type(struct thermal_zone_device *dev, int id,
 			 enum thermal_trip_type *type)
 {
@@ -246,9 +246,11 @@ static int get_max_state(struct thermal_cooling_device *cdev,
 	long id = FAN_ID(cdev->devdata);
 	long trip = FAN_TRIP(cdev->devdata);
 
+	*state = 0;
+
 	if (trip <= TRIP_LOW)
 		return FAN_READ(&cdev->device, CTRL_PWM_HIGH + trip, id, state);
-
+	
 	return 0;
 }
 
@@ -302,13 +304,13 @@ static void thermal_zone_device_release(struct device *dev, void *res)
 	thermal_zone_device_unregister(*(struct thermal_zone_device **)res);
 }
 
-static struct thermal_zone_device
-*devm_thermal_zone_device_register_with_trips(struct device *dev,
-	const char *type, struct thermal_trip *trips,
-	int num_trips, int mask, void *devdata,
+static struct thermal_zone_device *
+devm_thermal_zone_device_register(
+	struct device *dev, 
+	const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
-	struct thermal_zone_params *tzp, int passive_delay,
-	int polling_delay)
+	struct thermal_zone_params *tzp,
+	int passive_delay, int polling_delay)	
 {
 	struct thermal_zone_device **ptr, *tzd;
 
@@ -317,10 +319,9 @@ static struct thermal_zone_device
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	tzd = thermal_zone_device_register_with_trips(type, trips, num_trips,
-						      mask, devdata, ops, tzp,
-						      passive_delay,
-						      polling_delay);
+	tzd = thermal_zone_device_register(type, trips, mask,
+					   devdata, ops, tzp,
+					   passive_delay,polling_delay);
 	if (IS_ERR(tzd)) {
 		devres_free(ptr);
 		return tzd;
@@ -334,7 +335,6 @@ static struct thermal_zone_device
 
 static struct thermal_zone_device_ops zone_ops = {
 	.get_temp = get_temp,
-	.change_mode = change_mode,
 	.get_trip_type = get_trip_type,
 	.get_trip_temp = get_trip_temp,
 	.set_trip_temp = set_trip_temp,
@@ -345,8 +345,6 @@ static struct thermal_cooling_device_ops cooling_ops = {
 	.get_cur_state = get_cur_state,
 	.set_cur_state = set_cur_state,
 };
-
-static struct thermal_trip trips[4][3] = {{{ 0, 0, THERMAL_TRIP_ACTIVE }}};
 
 static struct thermal_zone_params zone_params = {
 	.governor_name = "user_space",
@@ -360,9 +358,10 @@ static int probe(struct platform_device *pdev)
 	struct device *dev =  &pdev->dev;
 
 	/* Confirm if eiois200_core exist */
-	if (!dev_get_drvdata(dev->parent))
-		return dev_err_probe(dev, -ENOMEM,
-				     "Error contact eiois200_core %d\n", ret);
+	if (!dev_get_drvdata(dev->parent)) {
+		dev_err(dev, "Error contact eiois200_core %d\n", ret);
+		return -ENOMEM;
+	}
 
 	/* Init and register 4 smart fan */
 	for (fan = 0; fan < FAN_MAX; fan++) {
@@ -371,7 +370,6 @@ static int probe(struct platform_device *pdev)
 		int trip_hi = 0, trip_lo = 0, trip_stop = 0;
 		int pwm_hi = 0, pwm_lo = 0;
 		struct thermal_zone_device *zone;
-		struct thermal_cooling_device *cdev[3];
 
 		/* Read the fan's all params */
 		if (FAN_READ(dev, CTRL_STATE,	   fan, &state)	    ||
@@ -395,44 +393,43 @@ static int probe(struct platform_device *pdev)
 			continue;
 		}
 
-		trips[fan][0].temperature = DECI_KELVIN_TO_MILLICELSIUS(trip_hi);
-		trips[fan][1].temperature = DECI_KELVIN_TO_MILLICELSIUS(trip_lo);
-		trips[fan][2].temperature = DECI_KELVIN_TO_MILLICELSIUS(trip_stop);
-
 		/* Create zone */
-		zone = devm_thermal_zone_device_register_with_trips(dev,
-				"eiois200_fan", trips[fan], 3,
-				(1 << 3) - 1,
+		zone = devm_thermal_zone_device_register(dev,
+				"eiois200_fan", TRIP_NUM, (1 << TRIP_NUM) - 1,
 				(void *)fan, &zone_ops, &zone_params, 0, 0);
 		if (!zone)
 			return PTR_ERR(zone);
 
+
 		/* The same fan but different range */
 		for (trip = 0; trip < TRIP_NUM; trip++) {
+			struct thermal_cooling_device *cdev;
 			int hi[] = { pwm_hi, pwm_lo, 0 };
-			int lo[] = { pwm_lo, pwm_lo, 0 } ;
-				 
-			cdev[trip] = devm_thermal_cooling_device_register(dev,
-						"Fan",
+			int lo[] = { pwm_lo, pwm_lo, 0 };
+
+			cdev = devm_thermal_cooling_device_register(dev, "Fan",
 						(void *)((fan << 8) | trip),
 						&cooling_ops);
-			if (IS_ERR(cdev[trip]))
-				return dev_err_probe(dev, PTR_ERR(cdev[trip]),
-						     "Create smart fan cooling device failed:%ld\n",
-						     PTR_ERR(cdev[trip]));
+
+			if (IS_ERR(cdev)) {
+				dev_err(dev, "Create smart fan cooling device failed:%ld\n",
+					PTR_ERR(cdev));
+				return PTR_ERR(cdev);
+			}
 
 			ret = thermal_zone_bind_cooling_device(zone,
-							trip, cdev[trip],
+							trip, cdev,
 							hi[trip], lo[trip],
 							THERMAL_WEIGHT_DEFAULT);
-			if (ret)
-				return dev_err_probe(dev, ret,
-						     "Create binding cooling device failed\n");
+			if (ret) {
+				dev_err(dev, "Create binding cooling device failed\n");
+				return ret;
+			}
 
 			if (trip == TRIP_STOP) 
 				continue ;
 
-			ret = device_create_file(&cdev[trip]->device,
+			ret = device_create_file(&cdev->device,
 						 &dev_attr_set_max_state);
 			if (ret)
 				dev_warn(dev,

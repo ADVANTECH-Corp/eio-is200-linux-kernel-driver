@@ -349,7 +349,7 @@ function SmartFanSub1Menu
 			echo -e "Low Limit (0 ~ 255 milli-Celsius): \c"			
 			read tv;
 			    
-			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} < 0 ] || [${tv} > 255 ] ; then
+			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 255 ] ; then
 				echo -e "Invalid value\c"               
 				read tv;
 			else 
@@ -362,7 +362,7 @@ function SmartFanSub1Menu
 			echo -e "High Stop Limit (0 ~ 255 milli-Celsius): \c"			
 			read tv;
                                                                                 
-			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} < 0 ] || [${tv} > 255 ] ; then
+			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 255 ] ; then
 				echo -e "Invalid value\c"                
 				read tv;
 			else
@@ -374,7 +374,7 @@ function SmartFanSub1Menu
 		"6")
 			echo -e "Max RPM (0 ~ 100 %) : \c"
 			read tv;
-			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} < 0 ] || [${tv} > 100 ] ; then
+			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 100 ] ; then
 				echo -e "Invalid value\c"
 				read tv;
 			else
@@ -384,7 +384,7 @@ function SmartFanSub1Menu
 		"7")
 			echo -e "Min RPM (0 ~ 100 %) : \c"
 			read tv;
-			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} < 0 ] || [${tv} > 100 ] ; then
+			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 100 ] ; then
 				echo -e "Invalid value\c"
 				read tv;
 			else
@@ -1469,7 +1469,7 @@ function SusiMainMenu
 		echo "**               SUSI4.1 demo               **"
 		echo "**********************************************"
 		echo ""
-		echo "Main (demo version : 4.1.$SUSIDEMO4_VERSION.0)"
+		echo "Main (EIOIS200 driver demo script)"
 		echo ""
 		echo -e "0) Terminate this program"
 		echo -e "1) Watch Dog"

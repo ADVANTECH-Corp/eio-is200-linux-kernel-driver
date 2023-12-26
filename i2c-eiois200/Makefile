@@ -43,7 +43,7 @@ load: module
 	modprobe $(MODULE_NAME)
 
 unload:
-	! grep -q "^$(MODULE_NAME) " /proc/modules || rmmod $(MODULE_NAME)
+	! grep -q "^i2c_eiois200 " /proc/modules || rmmod $(MODULE_NAME)
 
 .PHONY: module clean install uninstall load unload install-dkms uninstall-dkms
 

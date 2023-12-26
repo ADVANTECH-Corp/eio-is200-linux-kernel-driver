@@ -16,6 +16,8 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/regmap.h>
+#include <linux/sysfs.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
@@ -79,6 +81,7 @@ static const struct regmap_config pnp_regmap_config = {
 	.val_bits	= 8,
 	.volatile_table = &volatile_regs,
 	.io_port	= true,
+	.cache_type	= REGCACHE_NONE,
 };
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 
@@ -103,6 +106,18 @@ static int write(void *context, const void *data, size_t count)
 	outb(p->val, p->reg);
 	return 0;
 }
+static int reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	*(u8*)val = inb(reg);
+	return 0;
+}
+
+static int reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	outb(val, reg);
+	return 0;
+}
+
 		    
 static const struct regmap_config pnp_regmap_config = {
 	.name		= "eiois200_core",
@@ -111,11 +126,14 @@ static const struct regmap_config pnp_regmap_config = {
 	.volatile_table = &volatile_regs,
 	.read		= read,
 	.write		= write,
+    	.reg_read  	= reg_read,
+	.reg_write	= reg_write,
 };
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+#else
+//#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 static int reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	*(u8*)val = inb(reg);
+	*val = (uint) inb(reg);
 	return 0;
 }
 
@@ -132,9 +150,10 @@ static const struct regmap_config pnp_regmap_config = {
 	.volatile_table = &volatile_regs,
     	.reg_read  	= reg_read,
 	.reg_write	= reg_write,
+	.fast_io	= true,
 };
-#else
-	#error "Unsupported kernel version! This driver requires at least Linux kernel 5.15.0"
+//#else
+//	#error "Unsupported kernel version! This driver requires at least Linux kernel 5.10.0"
 #endif
 
 static struct {
@@ -160,6 +179,9 @@ static struct {
 	{ "powerup_hour",	0x55, 0x11,  4 },
 };
 
+void __iomem *iomem = NULL;
+
+
 static ssize_t info_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -181,9 +203,9 @@ static ssize_t info_show(struct device *dev,
 				return ret;
 
 			if (attrs[i].size == 4)
-				return sysfs_emit(buf, "%X\n", *(u32 *)str);
+				return sprintf(buf, "%X\n", *(u32 *)str);
 			else
-				return sysfs_emit(buf, "%s\n", str);
+				return sprintf(buf, "%s\n", str);
 		}
 
 	return -EINVAL;
@@ -306,10 +328,11 @@ static int pmc_write_cmd(struct device *dev,
 	if (WAIT_IBF(dev, id, timeout))
 		return -ETIME;
 
-	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].cmd, value);
+	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].cmd, value);	
 	if (ret)
 		dev_err(dev, "Error PMC write %X:%X\n",
 		        eiois200_dev->pmc[id].data, value);
+		
 
 	return ret;
 }
@@ -411,7 +434,9 @@ int eiois200_core_pmc_wait(struct device *dev,
 		}
 
 		/* Incremental delay */
-		fsleep(cnt++ * 10);
+		cnt += 10;
+
+		usleep_range(cnt, 2 * cnt);
 
 	} while (ktime_before(ktime_get(), time_end));
 
@@ -637,13 +662,17 @@ static int firmware_code_base(struct device *dev)
 
 static int eiois200_probe(struct device *dev, unsigned int id)
 {
-	void __iomem *iomem;
 	int  ret = 0;
 	
 	iomem = devm_ioport_map(dev, 0, EIOIS200_SUB_PNP_DATA + 1);
 	if (IS_ERR(iomem))
 		return -ENOMEM;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 	regmap_is200 = devm_regmap_init_mmio(dev, iomem, &pnp_regmap_config);
+#else	
+	regmap_is200 = devm_regmap_init(dev, NULL, eiois200_dev, &pnp_regmap_config);
+#endif
 	if (IS_ERR(regmap_is200))
 		return -ENOMEM;
 

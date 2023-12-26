@@ -6,12 +6,14 @@
  * Author: Wenkai <advantech.susiteam@gmail.com>
  */
 
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/mfd/eiois200.h>
+#include <linux/version.h>
 
 #define SUPPORTED_SMB	(I2C_FUNC_SMBUS_QUICK | \
 			 I2C_FUNC_SMBUS_BYTE | \
@@ -167,17 +169,6 @@ struct dev_i2c {
 	struct rt_mutex lock;
 };
 
-static struct regmap_range is200_range[] = {
-	 regmap_reg_range(EIOIS200_PNP_INDEX,	  EIOIS200_PNP_DATA),
-	 regmap_reg_range(EIOIS200_SUB_PNP_INDEX, EIOIS200_SUB_PNP_DATA),
-	 regmap_reg_range(0x200,		  0x3FF),
-};
-
-static const struct regmap_access_table volatile_regs = {
-	.yes_ranges   = is200_range,
-	.n_yes_ranges = ARRAY_SIZE(is200_range),
-};
-
 /* Pointer to the eiois200_core device structure */
 static struct eiois200_dev *eiois200_dev;
 
@@ -202,6 +193,34 @@ MODULE_PARM_DESC(smb0_freq, "Set EIO-IS200's SMB0 freq.\n");
 static int smb1_freq = USE_DEFAULT;
 module_param(smb1_freq, int, 0444);
 MODULE_PARM_DESC(smb1_freq, "Set EIO-IS200's SMB1 freq.\n");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
+static void devm_i2c_adapter_release(struct device *dev, void *res)
+{
+	i2c_del_adapter(*(struct i2c_adapter **)res);
+}
+
+static int devm_i2c_add_adapter(struct device *dev, struct i2c_adapter *adap)
+{
+	struct i2c_adapter **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_i2c_adapter_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = i2c_add_adapter(adap);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = adap;
+	devres_add(dev, ptr);
+
+	return ret;
+}
+#endif
 
 /* my_delay modified from fsleep */
 static void my_delay(int cnt)
@@ -354,8 +373,10 @@ static int bus_stop(struct dev_i2c *i2c)
 	do {
 		my_delay(cnt++);
 
-		if (ktime_after(ktime_get(), time_end))
-			return dev_err_probe(i2c->dev, -ETIME, "wait bus stop complete timeout\n");
+		if (ktime_after(ktime_get(), time_end)) {
+			dev_err(i2c->dev, "wait bus stop complete timeout\n");
+			return -ETIME;
+		}
 
 		I2C_READ(i2c, reg, &val);
 	} while (val & target);
@@ -390,8 +411,8 @@ static int wait_write_done(struct dev_i2c *i2c, bool no_ack)
 				reg_or(i2c, SMB_REG_HS, 0);
 				reg_or(i2c, SMB_REG_HS2, 0);
 			}
-			return dev_err_probe(i2c->dev, -ETIME,
-					     "wait write complete timeout %X\n", val);
+			dev_err(i2c->dev, "wait write complete timeout %X\n", val);
+			return -ETIME;
 		}
 
 		I2C_READ(i2c, reg, &val);
@@ -456,7 +477,8 @@ static int read_data(struct dev_i2c *i2c, void *data)
 		if (ktime_after(ktime_get(), time_end)) {
 			reg_or(i2c, stat, 0);
 
-			return dev_err_probe(i2c->dev, -ETIME, "read data timeout\n");
+			dev_err(i2c->dev, "read data timeout\n");
+			return -ETIME;
 		}
 
 		I2C_READ(i2c, stat, &val);
@@ -481,9 +503,10 @@ static int set_freq(struct dev_i2c *i2c, int freq)
 	int reg2 = IS_I2C(i2c) ? I2C_REG_PRESCALE2 : SMB_REG_HPRESCALE2;
 
 	dev_dbg(i2c->dev, "set freq: %dkHz\n", freq);
-	if (freq > I2C_FREQ_MAX || freq < I2C_FREQ_MIN)
-		return dev_err_probe(i2c->dev, -EINVAL,
-				     "Invalid i2c freq: %d\n", freq);
+	if (freq > I2C_FREQ_MAX || freq < I2C_FREQ_MIN) {
+		dev_err(i2c->dev, "Invalid i2c freq: %d\n", freq);
+		return -EINVAL;
+	}
 
 	speed = freq < I2C_THRESHOLD_SCLH ? I2C_SCLH_LOW : I2C_SCLH_HIGH ;
 
@@ -688,7 +711,8 @@ exit:
 
 static int i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	int msg, data, addr;
+	int msg, data;
+	int addr = 0;
 	int dummy;
 	int ret = 0;
 	struct dev_i2c *i2c = i2c_get_adapdata(adap);
@@ -885,9 +909,10 @@ static int load_i2c(struct device *dev, enum i2c_ch ch, struct dev_i2c *i2c)
 	    regmap_read(regmap, REG_PNP_DATA, &base_lo) ||
 	    regmap_write(regmap, REG_PNP_INDEX, REG_EXT_MODE_EXIT)) {
 
-		return dev_err_probe(dev, -EIO,
-				     "error read/write I2C[%d] IO port\n", ch);
 		mutex_unlock(&eiois200_dev->mutex);
+		
+		dev_err(dev, "error read/write I2C[%d] IO port\n", ch);
+		return -EIO;
 	}
 
 	mutex_unlock(&eiois200_dev->mutex);
@@ -931,37 +956,32 @@ static int probe(struct platform_device *pdev)
 	int ret = 0;
 	enum i2c_ch ch;
 	struct device *dev = &pdev->dev;
-
-	if ((timeout < I2C_TIMEOUT / 100) || (timeout > I2C_TIMEOUT * 100))
-		return dev_err_probe(dev, -EINVAL,
-				     "Error timeout value %d\n", timeout);
+	
+	if ((timeout < I2C_TIMEOUT / 100) || (timeout > I2C_TIMEOUT * 100)) {
+		dev_err(dev, "Error timeout value %d\n", timeout);
+		return -EINVAL;
+	}
 
 	eiois200_dev = dev_get_drvdata(dev->parent);
-	if (!eiois200_dev)
-		return dev_err_probe(dev, ret,
-				     "Error contact eiois200_core %d\n", ret);
+	if (!eiois200_dev) {
+		dev_err(dev, "Error contact eiois200_core %d\n", ret);
+		return -ENXIO ;
+	}
 
 	regmap = dev_get_regmap(dev->parent, NULL);
-	if (!regmap)
-		return dev_err_probe(dev, -ENOMEM, "Query parent regmap fail\n");
-
-#if 0
-	iomem = devm_ioport_map(dev, 0, EIOIS200_SUB_PNP_DATA + 1);
-	if (!iomem)
+	if (!regmap) {
+		dev_err(dev, "Query parent regmap fail\n");
 		return -ENOMEM;
-
-	regmap = devm_regmap_init_mmio(dev, iomem, &pnp_regmap_config);
-	if (!regmap)
-		return -ENOMEM;
-#endif
+	}
 
 	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
 		struct dev_i2c *i2c;
 
 		i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
-		if (!i2c)
-			return dev_err_probe(dev, -ENOMEM,
-					     "Error allocate memory\n");
+		if (!i2c) {
+			dev_err(dev, "Error allocate memory\n");
+			return -ENOMEM;
+		}
 
 		if (load_i2c(dev, ch, i2c))
 			continue;

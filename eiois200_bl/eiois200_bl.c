@@ -181,9 +181,10 @@ static int bl_probe(struct platform_device *pdev)
 	struct backlight_device *bl;
 
 	/* Confirm if eiois200_core exist */
-	if (!dev_get_drvdata(dev->parent))
-		return dev_err_probe(dev, -ENOMEM,
-				     "Error contact eiois200_core %d\n", ret);
+	if (!dev_get_drvdata(dev->parent)) {
+		dev_err(dev, "Error contact eiois200_core %d\n", ret);
+		return -ENOMEM;
+	}
 
 	/* Init and register 2 backlights */
 	for (id = 0; id < BL_MAX; id++) {

@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-MODULES := eiois200_core gpio-eiois200 i2c-eiois200 eiois200_bl eiois200_wdt eiois200-hwmon 
+MODULES := eiois200_core i2c-eiois200 gpio-eiois200 eiois200_bl eiois200_wdt eiois200-hwmon eiois200_fan
 MODULE_VERSION := 1.0
 
 reverse = $(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstword $(1))
@@ -41,5 +41,3 @@ $(UNINSTALLMODS):
 uninstall: $(UNINSTALLMODS)
 
 .PHONY: all clean $(MODULES) $(CLEANMODS) $(LOADMODS) $(UNLOADMODS) $(INSTALLMODS) $(UNINSTALLMODS)
-
-
