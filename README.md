@@ -51,6 +51,7 @@ root# sudo ./example.sh
 > If you need to package the source code into an installation package, please follow the instructions below, remember to change "0.0.2" to your target version:
 ```bash
   sudo cp eiois200-0.0.2/ /usr/src/ -r
+  sudo dkms add eiois200/0.0.2
   sudo dkms build eiois200/0.0.2
   sudo dkms mkdeb eiois200/0.0.2
 ```
