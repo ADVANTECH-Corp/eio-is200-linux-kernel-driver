@@ -75,4 +75,4 @@ root# sudo ./example.sh
 ```bash
   sudo dpkg -P eiois200-dkms
 ```
-ll /usr/src
+
