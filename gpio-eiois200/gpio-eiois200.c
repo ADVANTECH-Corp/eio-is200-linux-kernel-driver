@@ -205,7 +205,7 @@ static int gpio_init(void)
 			continue;
 
 		gpio_dev->avail |= BIT(i);
-		gpio_dev->max = i;
+		gpio_dev->max = i + 1;
 		str[GPIO_MAX_PINS - i] = '1';
 	}
 
