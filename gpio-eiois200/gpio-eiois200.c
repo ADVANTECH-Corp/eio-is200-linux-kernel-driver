@@ -116,7 +116,7 @@ static int dir_input(struct gpio_chip *chip, unsigned int offset)
 {
 	u8 dir = 0;
 
-	return pmc_read(GPIO_PIN_DIR, offset, &dir);
+	return pmc_write(GPIO_PIN_DIR, offset, &dir);
 }
 
 static int dir_output(struct gpio_chip *chip, unsigned int offset, int value)
