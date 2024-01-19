@@ -142,7 +142,7 @@
 #define I2C_SCL_FAST_MODE	0x80
 #define I2C_THRESHOLD_SPEED	100
 #define I2C_THRESHOLD_SCLH	30
-#define I2C_FREQ_MAX		1000
+#define I2C_FREQ_MAX		400
 #define I2C_FREQ_MIN		8
 
 #define IS_I2C(i2c)			(((i2c)->ch == i2c0) || ((i2c)->ch == i2c1))
