@@ -12,7 +12,6 @@
 ######                      Global Value                                  ######
 ################################################################################
 ADV_DEBUG_INFO="0"	# Please change to "0", it only use for debug info print.					
-SUSIDEMO4_VERSION=23426
 
 ################################################################################ 
 ######                    Global Functions                                ######
@@ -22,6 +21,15 @@ function dbg_print
 	if [ "$ADV_DEBUG_INFO" == "1" ]; then
 		echo -e "DEBUG INFO:[ $* ]"
 	fi 
+}
+
+function show_title
+{
+	clear
+	echo "**********************************************"
+	echo "**            EIOIS200 Example              **"
+	echo "**********************************************"
+	echo ""
 }
  
 ################################################################################
@@ -70,17 +78,14 @@ function WdtSub1Menu
 	while [ -z "$loop" ]
 	do
 		sync
-		clear
 		Timeleft=`cat /sys/class/watchdog/$WDT_NAME/timeleft`
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
 
 		if [ "$Timeleft" != "0" ]; then
 			echo System reboots in $Timeleft s
 		fi
 
+		show_title
+		echo "Watchdog"
 		echo ""
 		echo -e "0) Back to Main menu"
 		echo -e "1) Select watchdog timer: [0]"
@@ -95,7 +100,7 @@ function WdtSub1Menu
         
 		case $choose_value in
 		"0")
-		echo V > /dev/${WDT_NAME}
+			echo V > /dev/${WDT_NAME}
 			return 1
 			;;
 		"1")
@@ -144,7 +149,6 @@ function HwmSub1Menu
 
 	while [ -z "$loop" ]
 	do
-		clear
 		# find the hwmon#
 		for hwmonN in $(ls -v $HWM_SYSFS)
 		do
@@ -157,10 +161,7 @@ function HwmSub1Menu
 			fi
 		done
 		
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Hardware Monitor"
 		echo ""
 		echo -e "0) Back to Main menu";
@@ -252,11 +253,11 @@ function SmartFanSub1Menu
 				TZ_NAME[${tz_cnt}]=$tzN   
 				tz_cnt=$((tz_cnt+1))    
  			fi
-		fi                                
+		fi  
 	done
     
 	if [ "$tz_cnt" == "0" ]; then
-		echo "Can't find SUSI4 Smart Fan"
+		echo "Can't find Smart Fan"
 		echo -e "Press ENTER to continue. \c"
 		read choose_value;
 		return 1
@@ -272,15 +273,12 @@ function SmartFanSub1Menu
 
 	while [ -z "$loop" ]
 	do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Smart Fan Controller"
 		echo ""
 		echo -e "0) Back to Main menu"
-		echo -ne "1) Select Smart Fan: "
+		echo -e " ) Temperature		:" $temp
+		echo -ne "1) Select Smart Fan	: "
 		
 		for ((i=0 ; i < $tz_cnt ; i=i+1))
 		do 
@@ -294,16 +292,16 @@ function SmartFanSub1Menu
 				printf " $i "
 			fi
 		done                                                                  
-        
-        echo 
-		echo -e " ) Temperature		:" $temp
+		echo ""
+		echo -e "2) Toggle Fan mode	:" `cat $tz_dev/fan_mode`
 		echo -e "3) Low Stop Limit	:" $sl
 		echo -e "4) Low Limit		:" $ll
-		echo -e "5) High Limit    	:" $hl
-		echo -e "6) Max PWM 	  	:" $hr
-		echo -e "7) Min PWM 	  	:" $lr
-		echo -e "8) Get/Refresh all values"
-		echo -e "9) Save and apply setting"
+		echo -e "5) High Limit		:" $hl
+		echo -e "6) Max PWM		:" $hr
+		echo -e "7) Min PWM		:" $lr
+		echo -e "8) Manual PWM		:" `cat $tz_dev/PWM`
+		echo -e "9) Get/Refresh all values"
+		echo -e "10) Save and apply setting"
 		echo ""
 		echo -e "Enter your choice: \c"
 		read choose_value;                                    
@@ -318,8 +316,8 @@ function SmartFanSub1Menu
 			((++tz_idx))
 			if [ $tz_idx == $tz_cnt ] ; then
 				tz_idx=0 
-			fi                            
-			    
+			fi
+			
 			tz_dev=$TZ_SYSFS/${TZ_NAME[${tz_idx}]}
 			hl=$((`cat $tz_dev/trip_point_0_temp` / 1000))  
 			ll=$((`cat $tz_dev/trip_point_1_temp` / 1000))
@@ -327,71 +325,84 @@ function SmartFanSub1Menu
 			hr=`cat $tz_dev/cdev0/max_state` 
 			lr=`cat $tz_dev/cdev1/max_state`
 			temp=$((`cat $tz_dev/temp` / 1000))    
-                                                             
-			continue 
-			;;                                                                                                   
-            
+			;;
+		"2")
+			tv=`cat $tz_dev/fan_mode`
+			if [ "$tv" == "Stop" ]; then
+				echo Full > $tz_dev/fan_mode
+			elif [ "$tv" == "Full" ]; then
+				echo Manual > $tz_dev/fan_mode
+			elif [ "$tv" == "Manual" ]; then
+				echo Auto > $tz_dev/fan_mode
+			elif [ "$tv" == "Auto" ]; then
+				echo Stop > $tz_dev/fan_mode
+			fi
+			;;
 		"3")
             
 			echo -e "Low Stop Limit (0 ~ 255 milli-Celsius): \c" 			
 			read tv;
 												      
-			if [ ${tv} -le 0 ] || [ ${tv} -gt 255 ] ; then  
+			if [ ${tv} -lt 0 ] || [ ${tv} -gt 255 ] ; then  
 				echo -e "Invalid value\c"                
-				read tv;
+				read tv
 			else
-				sl=${tv}              
+				sl=${tv}
 			fi
-		     
-			continue 
-			;;            
+			;;
 		"4")
 			echo -e "Low Limit (0 ~ 255 milli-Celsius): \c"			
 			read tv;
-			    
+
 			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 255 ] ; then
 				echo -e "Invalid value\c"               
-				read tv;
+				read tv
 			else 
 				ll=${tv} 
 			fi
-            
-			continue 
-			;;            
+			;;
 		"5") 
 			echo -e "High Stop Limit (0 ~ 255 milli-Celsius): \c"			
 			read tv;
                                                                                 
 			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 255 ] ; then
 				echo -e "Invalid value\c"                
-				read tv;
+				read tv
 			else
 				hl=${tv} 
 			fi
-            
-			continue 
 			;;
 		"6")
-			echo -e "Max RPM (0 ~ 100 %) : \c"
+			echo -e "Max PWM (0 ~ 100 %) : \c"
 			read tv;
 			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 100 ] ; then
 				echo -e "Invalid value\c"
-				read tv;
+				read tv
 			else
 				hr=${tv}
 			fi
 			;;
 		"7")
-			echo -e "Min RPM (0 ~ 100 %) : \c"
+			echo -e "Min PWM (0 ~ 100 %) : \c"
 			read tv;
 			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 100 ] ; then
 				echo -e "Invalid value\c"
-				read tv;
+				read tv
 			else
 				lr=${tv} 
 			fi
-			;;			
+			;;
 		"8")
+			echo -e "Enter PWM (0 ~ 100 %) : \c"
+			read tv;
+			if [ "$((${tv} + 0))" != "${tv}" ] || [ ${tv} -le 0 ] || [ ${tv} -gt 100 ] ; then
+				echo -e "Invalid value\c"
+				read tv
+			else
+				echo "$tv" > "$tz_dev/PWM"
+			fi
+			;;
+		"9")
 			tz_dev=$TZ_SYSFS/${TZ_NAME[${tz_idx}]}
 			hl=$((`cat $tz_dev/trip_point_0_temp` / 1000))  
 			ll=$((`cat $tz_dev/trip_point_1_temp` / 1000))
@@ -402,16 +413,16 @@ function SmartFanSub1Menu
 
 			echo -e "Press ENTER to continue. \c"
 			read choose_value;
-			;;            
-		"9")
-		    echo ${hl}000 > $tz_dev/trip_point_0_temp
-		    echo ${ll}000 > $tz_dev/trip_point_1_temp
-		    echo ${sl}000 > $tz_dev/trip_point_2_temp
-		    echo ${hr} > $tz_dev/cdev0/set_max_state
-		    echo ${lr} > $tz_dev/cdev1/set_max_state
+			;;
+		"10")
+			echo ${hl}000 > $tz_dev/trip_point_0_temp
+			echo ${ll}000 > $tz_dev/trip_point_1_temp
+			echo ${sl}000 > $tz_dev/trip_point_2_temp
+			echo ${hr} > $tz_dev/cdev0/set_max_state
+			echo ${lr} > $tz_dev/cdev1/set_max_state
 							    
-				echo -e "Press ENTER to continue. \c"
-		    read choose_value;
+			echo -e "Press ENTER to continue. \c"
+			read choose_value;
 			;;
 		*)
 			continue
@@ -447,19 +458,15 @@ function GpioSub1Menu
         
 	while [ -z "$loop" ] 
 	do
-        gpio_num=$((${GpioN}+${gpio_sel}))
-        gpio_path=${GPIO_SYSFS}/gpio${gpio_num}
-        echo ${gpio_num} > ${GPIO_SYSFS}/export  
-	
-        gpio_dir=`cat ${gpio_path}/direction`
-        gpio_val=`cat ${gpio_path}/value`
-        echo ${gpio_num} > ${GPIO_SYSFS}/unexport
-          
-        clear
-        echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		gpio_num=$((${GpioN}+${gpio_sel}))
+		gpio_path=${GPIO_SYSFS}/gpio${gpio_num}
+		echo ${gpio_num} > ${GPIO_SYSFS}/export  
+		
+		gpio_dir=`cat ${gpio_path}/direction`
+		gpio_val=`cat ${gpio_path}/value`
+		echo ${gpio_num} > ${GPIO_SYSFS}/unexport
+		  
+		show_title
 		echo "GPIO"
 		echo ""
 		echo -e "0) Back to Main menu";
@@ -476,7 +483,7 @@ function GpioSub1Menu
 			read choose_value;
 			return 1
 		else
-            
+	    
 			echo -e "Select the item you want to set: \c"
 			read choose_value;
 		fi
@@ -546,8 +553,6 @@ function VgaSub1Menu
     
 	while [ -z "$loop" ]
 	do
-		clear
-        
 		bl_path=${VGA_SYSFS}/${VGA_NAME}
 		bl_bri=`cat ${bl_path}/brightness`
 		bl_bri_invert=`cat ${VGA_MOD}/bri_invert`
@@ -556,15 +561,12 @@ function VgaSub1Menu
 		bl_onoff_invert=`cat ${VGA_MOD}/bl_power_invert`
 		bl_max=`cat ${bl_path}/max_brightness`  
 
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo "" 
+		show_title
 		echo "VGA: Backlight 1"
 		echo ""
 		echo -e "0) Back to Main menu";
 		echo -e "1) Select Flat Panel   : [0]";
-		printf  "2) Brightness value    : %d (0 to %d)\n" $bl_max $bl_bri
+		printf  "2) Brightness value    : %d (0 to %d)\n" $bl_bri $bl_max 
 		echo -e "3) Brightness freqency : $bl_freq Hz"
 		
 		if [ $bl_bri_invert == 1 ] ; then 
@@ -658,17 +660,15 @@ function VgaSub1Menu
 ################################################################################
 function SMBusSub2Probe
 {
-		echo "Probe:"
-		echo "Slave address of existed devices (Hex):"
-		echo ""
+	echo "Probe:"
+	echo "Slave address of existed devices (Hex):"
+	echo ""
 
-		i2cdetect -y ${SMBus[$SMBUS_current]}| sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'
+	i2cdetect -y ${SMBus[$SMBUS_current]}| sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'
 
-		echo ""
-		echo ""
-		echo "These are 7 bits addresses. These addresses may needs shift one bit."
-		echo -e "Press ENTER to continue. \c" 
-		read probe_value;
+	echo ""
+	echo -e "Press ENTER to continue. \c" 
+	read probe_value;
 }
 ################################################################################
 ######                     6-3) SMBus Sub2 Read:                          ######
@@ -680,12 +680,8 @@ function SMBusSub2Read
 	SMBUS_read_len=1
 
 	while [ -z "$loop" ]
-		do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+	do
+		show_title
 		echo "$SMBUS_DEV_NAME"
 		echo ""
 		echo "Read Data:"
@@ -767,12 +763,8 @@ function SMBusSub2Write
 	SMBUS_write_cmd=0
 	SMBUS_write_value=""
 	while [ -z "$loop" ]
-		do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+	do
+		show_title
 		echo "$SMBUS_DEV_NAME"
 		echo ""
 		echo "Write Data:"
@@ -875,7 +867,6 @@ function SMBusSub1Menu
 
 	while [ -z "$loop" ]
 	do
-		clear
 		i2cdetect -l > /dev/null 2>&1
 		if [ $? -eq 0 ] ;then
 			I2C_TOOLS=0
@@ -887,10 +878,7 @@ function SMBusSub1Menu
 		dbg_print "SMBus array= ${SMBus[@]}"
 		SMBUS_DEV_NAME=$(cat $SMBUS_SYSFS/i2c-${SMBus[$SMBUS_current]}/name | sed 's/eiois200 //g')
 
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "$SMBUS_DEV_NAME"
 		echo ""
 		echo -e "0) Back to Main menu"
@@ -964,12 +952,8 @@ function SMBusSub1Menu
 function I2CSub2Probe
 {
 	while [ -z "$loop" ]
-		do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+	do
+		show_title
 		echo "$I2C_DEV_NAME"
 		echo ""
 		echo -e "0) Back to I2C menu"
@@ -1008,13 +992,8 @@ function I2CSub2Read
 	I2C_read_len=1
 	
 	while [ -z "$loop" ]
-		do
-		clear
-		
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+	do
+		show_title
 		echo "$I2C_DEV_NAME"
 		echo ""
 		echo "Read Data:"
@@ -1095,12 +1074,8 @@ function I2CSub2Write
 	I2C_write_len=0
 	I2C_write_value=""
 	while [ -z "$loop" ]
-		do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+	do
+		show_title
 		echo "$I2C_DEV_NAME"
 		echo ""
 		echo "Write Data:"
@@ -1196,8 +1171,6 @@ function I2CSub1Menu
 
 	while [ -z "$loop" ]
 	do
-		clear
-		
 		i2cdetect -l > /dev/null 2>&1
 
 		if [ $? -eq 0 ] ;then
@@ -1211,10 +1184,7 @@ function I2CSub1Menu
 		I2C_DEV_NAME=$(cat $I2C_SYSFS/i2c-${I2C[$I2C_current]}/name | sed 's/eiois200-//g')
 		I2C_freq=`cat ${I2C_PARAM}/${I2C_DEV_NAME: -4}_freq`
 
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "$I2C_DEV_NAME"
 		echo ""
 		echo -e "0) Back to Main menu"
@@ -1240,7 +1210,7 @@ function I2CSub1Menu
 
 		echo ""
 		if [ $I2C_tatal -eq 0 ]; then
-			echo "Can't find SUSI I2C"
+			echo "Can't find I2C"
 			echo -e "Press ENTER to continue. \c"
 			read choose_value;
 			return 1
@@ -1305,11 +1275,7 @@ function StorageSub1Menu
 {
 	while [ -z "$loop" ]
 	do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Storage 1"
 		echo ""
 		echo -e "0) Back to Main menu"
@@ -1355,11 +1321,7 @@ function ThermalSub1Menu
 {
 	while [ -z "$loop" ]
 	do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Thermal Protection: Zone 1"
 		echo ""
 		echo -e "0) Back to Main menu"
@@ -1415,14 +1377,10 @@ function InfoSub1Menu
 	DIR=/sys/bus/isa/devices/eiois200_core.0
 	while [ -z "$loop" ]
 	do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Information"
 		echo ""
-		echo -e "Running time		:$UP_TIME"
+		echo -e "Up time			:$UP_TIME"
 		echo -e "Board ID		:" `cat $DIR/board_id`	
 		echo -e "Board Manufacturer	:" `cat $DIR/board_manufacturer`	
 		echo -e "Board Name		:" `cat $DIR/board_name`	
@@ -1437,6 +1395,8 @@ function InfoSub1Menu
 		echo -e "Firmware Version	:" `cat $DIR/firmware_version`
 		echo -e "Platform Revision	:" `cat $DIR/platform_revision`
 		echo -e "Platform Type		:" `cat $DIR/platform_type`			
+		echo -e "Pnp ID			:" `cat $DIR/pnp_id`			
+		echo -e "Running time (hour)	:" `cat $DIR/powerup_hour`
 		echo ""
 		echo -e "Press ENTER to continue. \c"
 		read choose_value;
@@ -1452,7 +1412,7 @@ function InfoSub1Menu
 ################################################################################
 ######                     Main Menu                                      ######
 ################################################################################
-function SusiMainMenu
+function MainMenu
 {
 	if [ "$USER" != "root" ]; then
 		clear
@@ -1464,11 +1424,7 @@ function SusiMainMenu
 	DRV_VERSION=$(modinfo eiois200_core | grep -sw version: | cut -d ":" -f 2 | sed 's/^[[:space:]]*//g')
 	while [ -z "$loop" ];
 	do
-		clear
-		echo "**********************************************"
-		echo "**               SUSI4.1 demo               **"
-		echo "**********************************************"
-		echo ""
+		show_title
 		echo "Main (EIOIS200 driver demo script)"
 		echo ""
 		echo -e "0) Terminate this program"
@@ -1479,14 +1435,11 @@ function SusiMainMenu
 		echo -e "5) VGA"
 		echo -e "6) SMBus"
 		echo -e "7) I2C"
-#		echo -e "x) Storage"
 #		echo -e "x) Thermal Protection"
 		echo -e "8) Information"
 		echo ""
 		echo -e "Enter your choice: \c"
 		read choose_value;
-
-#		echo "choose_value=$choose_value"
 
 		case $choose_value in
 		"0")
@@ -1576,5 +1529,5 @@ function SusiMainMenu
 ################################################################################
 
 if [ $# == 0 ]; then
-	SusiMainMenu
+	MainMenu
 fi
