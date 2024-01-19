@@ -160,23 +160,31 @@ static struct {
 	char name[32];
 	int  cmd;
 	int  ctrl;
+	int  dev;
 	int  size;
+	enum {
+		HEX,
+		NUMBER,		
+		PNP_ID,
+	} type;
+		
 } attrs[] = {
-	{ "board_name",		0x53, 0x10, 16 },
-	{ "board_serial",	0x53, 0x1F, 16 },
-	{ "board_manufacturer", 0x53, 0x11, 16 },
-	{ "board_id",		0x53, 0x1E,  4 },
-	{ "firmware_version",	0x53, 0x22, 16 },
-	{ "firmware_build",	0x53, 0x23, 26 },
-	{ "firmware_date",	0x53, 0x24, 16 },
-	{ "chip_id",		0x53, 0x12, 12 },
-	{ "chip_detect",	0x53, 0x15, 12 },
-	{ "platform_type",	0x53, 0x13, 16 },
-	{ "platform_revision",	0x53, 0x14,  4 },
-	{ "eapi_version",	0x53, 0x30,  4 },
-	{ "eapi_id",		0x53, 0x31,  4 },
-	{ "boot_count",		0x55, 0x10,  4 },
-	{ "powerup_hour",	0x55, 0x11,  4 },
+	{ "board_name",	0x53, 0x10, 0, 16 },
+	{ "board_serial",	0x53, 0x1F, 0, 16 },
+	{ "board_manufacturer", 0x53, 0x11, 0, 16 },
+	{ "board_id",		0x53, 0x1E, 0,  4 },
+	{ "firmware_version",	0x53, 0x22, 0, 16 },
+	{ "firmware_build",	0x53, 0x23, 0, 26 },
+	{ "firmware_date",	0x53, 0x24, 0, 16 },
+	{ "chip_id",		0x53, 0x12, 0, 12 },
+	{ "chip_detect",	0x53, 0x15, 0, 12 },
+	{ "platform_type",	0x53, 0x13, 0, 16 },
+	{ "platform_revision",	0x53, 0x14, 0,  4 },
+	{ "eapi_version",	0x53, 0x30, 0,  4 },
+	{ "eapi_id",		0x53, 0x31, 0,  4 },
+	{ "boot_count",	0x55, 0x10, 0,  4, NUMBER },
+	{ "powerup_hour",	0x55, 0x11, 0,  4, NUMBER },
+	{ "pnp_id", 		0x53, 0x04, 0x68,  4, PNP_ID },
 };
 
 void __iomem *iomem = NULL;
@@ -187,26 +195,44 @@ static ssize_t info_show(struct device *dev,
 {
 	uint i;
 
-	for (i = 0; i < ARRAY_SIZE(attrs); i++)
-		if (!strcmp(attr->attr.name, attrs[i].name)) {
-			int ret;
-			char str[32] = "";
-			struct pmc_op op = {
-				.cmd     = attrs[i].cmd,
-				.control = attrs[i].ctrl,
-				.payload = (u8 *)str,
-				.size    = attrs[i].size,
-			};
+	for (i = 0; i < ARRAY_SIZE(attrs); i++) {
+		int ret;
+		char str[32] = "";
+		int val;
+		
+		struct pmc_op op = {
+			.cmd     = attrs[i].cmd,
+			.control = attrs[i].ctrl,
+			.device_id = attrs[i].dev,
+			.payload = (u8 *)str,
+			.size    = attrs[i].size,
+		};
+		
+		if (strcmp(attr->attr.name, attrs[i].name)) 
+			continue ;
 
-			ret = eiois200_core_pmc_operation(dev, &op);
-			if (ret)
-				return ret;
+		ret = eiois200_core_pmc_operation(dev, &op);
+		if (ret)
+			return ret;
 
-			if (attrs[i].size == 4)
-				return sprintf(buf, "%X\n", *(u32 *)str);
-			else
-				return sprintf(buf, "%s\n", str);
-		}
+		if (attrs[i].size != 4)
+			return sprintf(buf, "%s\n", str);
+
+		val = *(u32 *)str;		
+		
+		if (attrs[i].type == HEX) 
+			return sprintf(buf, "0x%X\n", val);
+
+		if (attrs[i].type == NUMBER) 
+			return sprintf(buf, "%d\n", val);
+			
+		/* Should be pnp_id */
+		return sprintf(buf, "%c%c%c, %X\n",
+			       (val >> 14 & 0x3F) + 0x40,
+			       ((val >> 9 & 0x18) | (val >> 25 & 0x07)) + 0x40,
+			       (val >> 20 & 0x1F) + 0x40,
+			       val & 0xFFF);
+	}
 
 	return -EINVAL;
 }
@@ -233,6 +259,7 @@ PMC_DEVICE_ATTR_RO(eapi_version);
 PMC_DEVICE_ATTR_RO(eapi_id);
 PMC_DEVICE_ATTR_RO(boot_count);
 PMC_DEVICE_ATTR_RO(powerup_hour);
+PMC_DEVICE_ATTR_RO(pnp_id);
 
 static struct attribute *pmc_attrs[] = {
     &dev_attr_board_name.attr,
@@ -250,6 +277,7 @@ static struct attribute *pmc_attrs[] = {
     &dev_attr_eapi_id.attr,
     &dev_attr_boot_count.attr,
     &dev_attr_powerup_hour.attr,
+    &dev_attr_pnp_id.attr,
     NULL
 };
 
@@ -718,4 +746,3 @@ module_isa_driver(eiois200_driver, 1);
 MODULE_AUTHOR("Wenkai <advantech.susiteam@gmail.com>");
 MODULE_DESCRIPTION("Advantech EIO-IS200 series EC core driver");
 MODULE_LICENSE("GPL v2");
-
