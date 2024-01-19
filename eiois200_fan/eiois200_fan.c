@@ -13,8 +13,13 @@
  *
  * We create a sysfs 'name' of the zone, point out where the fan is. Such as
  * CPU0, SYS3, etc.
+ *
  * We create a sysfs 'set_max_state' of the cooling device, too. Which can
  * modifies the threshold of the fan PWM value of a thermal zone trip.
+ *
+ * The sysfs 'fan_mode' can be one of 'Stop', 'Full', 'Manual' or 'Auto'.
+ * If 'Manual'. You can control fan speed via sysfs 'PWM'.
+ * If it is 'Auto'. It enables the smart fan mechanism as below.
  *
  * In EIO-IS200 chip. The smart fan has 3 trips. When the temperature is:
  * - Over Temp High(trip0), the Fan runs at the fan PWM High.
@@ -179,8 +184,100 @@ static ssize_t name_show(struct device *dev,
 	return strlen(buf);
 }
 
+static ssize_t fan_mode_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct thermal_zone_device *zone =
+			container_of(dev, struct thermal_zone_device, device);
+	long id = (long)zone->devdata;
+	int mode, val;
+	char name[4][8] = { "Stop", "Full", "Manual", "Auto" } ;
+	int ret;
+	
+	for (mode = 0; mode < ARRAY_SIZE(name); mode++) {
+		if (strncasecmp(buf, name[mode], strlen(name[mode])))
+			continue;
+		
+		ret = FAN_READ(&zone->device, CTRL_CTRL, id, &val);	
+		if (ret)
+			return -EIO;
+			
+		mode |= val & 0xFC;
+		ret = FAN_WRITE(&zone->device, CTRL_CTRL, id, &mode);
+		
+		return	ret ? ret : count;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t fan_mode_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	struct thermal_zone_device *zone =
+			container_of(dev, struct thermal_zone_device, device);
+	long id = (long)zone->devdata;
+	int mode = 0;
+	char name[4][8] = { "Stop", "Full", "Manual", "Auto" } ;
+	int ret;
+	
+	ret = FAN_READ(&zone->device, CTRL_CTRL, id, &mode);	
+	if (ret)
+		return -EIO;
+		
+	sprintf(buf, "%s\n", name[mode & 0x03]);
+	
+	return strlen(buf);
+}
+
+static ssize_t PWM_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct thermal_zone_device *zone =
+			container_of(dev, struct thermal_zone_device, device);
+	long id = (long)zone->devdata;
+	int val;
+	int ret;
+	
+	if (kstrtoint(buf, 10, &val))
+		return -EINVAL;
+	
+	if (val > 100)
+		val = 100;
+	
+	ret = FAN_WRITE(&zone->device, CTRL_VALUE, id, &val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t PWM_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	struct thermal_zone_device *zone =
+			container_of(dev, struct thermal_zone_device, device);
+	long id = (long)zone->devdata;
+	int val = 0;
+	int ret;
+	
+	ret = FAN_READ(&zone->device, CTRL_VALUE, id, &val);
+	if (ret)
+		return ret;
+	
+	sprintf(buf, "%d\n", val);
+	
+	return strlen(buf);
+}
+
 static DEVICE_ATTR_WO(set_max_state);
 static DEVICE_ATTR_RO(name);
+static DEVICE_ATTR_RW(fan_mode);
+static DEVICE_ATTR_RW(PWM);
 
 static int get_temp(struct thermal_zone_device *zone, int *temp)
 {
@@ -429,6 +526,7 @@ static int probe(struct platform_device *pdev)
 			if (trip == TRIP_STOP) 
 				continue ;
 
+			/* Create sysfs for changing max state */
 			ret = device_create_file(&cdev->device,
 						 &dev_attr_set_max_state);
 			if (ret)
@@ -437,9 +535,20 @@ static int probe(struct platform_device *pdev)
 					 ret);
 		}
 
+		/* Create sysfs for showing fan name */
 		ret = device_create_file(&zone->device, &dev_attr_name);
 		if (ret)
 			dev_warn(dev, "Error create thermal zone name sysfs\n");
+
+		/* Create sysfs for changing fan mode */
+		ret = device_create_file(&zone->device, &dev_attr_fan_mode);
+		if (ret)
+			dev_warn(dev, "Error create thermal zone fan_mode sysfs\n");
+
+		/* Create sysfs for manual changing fan speed */
+		ret = device_create_file(&zone->device, &dev_attr_PWM);
+		if (ret)
+			dev_warn(dev, "Error create thermal zone fan_mode sysfs\n");
 
 		dev_dbg(dev, "%s smart fan up\n", fan_name[name]);
 	}
