@@ -63,7 +63,7 @@ struct {
 	{ 3, 6 }, { 3, 7 }
 };
 
-static int timeout = 0;
+static int timeout;
 module_param(timeout, int, 0444);
 MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 

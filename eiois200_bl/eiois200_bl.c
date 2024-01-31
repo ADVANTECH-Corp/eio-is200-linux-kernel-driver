@@ -58,7 +58,7 @@ static int bl_power_invert = USE_DEFAULT;
 module_param(bl_power_invert, int, 0444);
 MODULE_PARM_DESC(bl_power_invert, "Setup backlight enable pin polarity.\n");
 
-static int timeout = 0;
+static int timeout;
 module_param(timeout, int, 0444);
 MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 

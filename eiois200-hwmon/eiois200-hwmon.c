@@ -16,7 +16,7 @@
 #define MAX_DEV 128
 #define MAX_NAME 32
 
-static uint timeout = 0;
+static uint timeout;
 module_param(timeout, uint, 0444);
 MODULE_PARM_DESC(timeout,
 		 "Default pmc command timeout in micro-seconds.\n");

@@ -1,4 +1,4 @@
- // SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * eiois200_thermal
  * ================
@@ -98,11 +98,11 @@
 
 #define THERM_READ(dev, ctl, id, data) \
 	pmc_cmd(dev, CMD_THERM_READ, ctl, id, pmc_len[ctl], data)
-	
+
 #ifndef dev_err_probe
-	#define dev_err_probe(dev, ret, fmt, args...)  do { \
-	    dev_err(dev, fmt, ##args); \
-	    return ret; \
+	#define dev_err_probe(dev, ret, fmt, args...) do { \
+		dev_err(dev, fmt, ##args); \
+		return ret; \
 	} while (0)
 #endif
 
@@ -149,7 +149,7 @@ static char therm_name[0x20][NAME_SIZE + 1] = {
 	"", "", "", "", "OEM0", "OEM1", "OEM2", "OEM3",
 };
 
-static int timeout = 0;
+static int timeout;
 module_param(timeout, int, 0444);
 MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 
@@ -263,7 +263,7 @@ static int get_temp(struct thermal_zone_device *zone, int *temp)
 
 static int get_trip_type(struct thermal_zone_device *dev, int id,
 			 enum thermal_trip_type *type)
-{	
+{
 	*type = id < TRIP_THROTTLE ? THERMAL_TRIP_CRITICAL : THERMAL_TRIP_HOT;
 
 	return id > TRIP_THROTTLE;
@@ -296,18 +296,18 @@ static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 		CTRL_THROTTLE_HI
 	};
 	static int dec[] = {10, 5, 1};
-	
+
 	if (id >= TRIP_NUM)
 		return -EINVAL;
 
 	/* Set trigger temp */
 	val = DECI_CELSIUS_TO_DECI_KELVIN(temp);
 	ret = THERM_WRITE(&zone->device, ctrl[trip], id, &val);
-	
+
 	/* Set clear temp */
 	val -= dec[id];
 	if (!ret)
-		ret = THERM_WRITE(&zone->device, ctrl[trip]+1, id, &val);
+		ret = THERM_WRITE(&zone->device, ctrl[trip] + 1, id, &val);
 
 	return ret;
 }
@@ -380,7 +380,7 @@ static void thermal_zone_device_release(struct device *dev, void *res)
 
 static struct thermal_zone_device *
 devm_thermal_zone_device_register(struct device *dev,
-	const char *type, int trips, int mask, void *devdata,
+				  const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
 	struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
@@ -444,7 +444,7 @@ static int probe(struct platform_device *pdev)
 		dev_err(dev, "Error contact eiois200_core %d\n", ret);
 		return -ENOMEM;
 	}
-	
+
 	/* Init and register 4 thermal channel */
 	for (ch = 0; ch < THERM_NUM; ch++) {
 		union thermal_status state;
@@ -487,7 +487,7 @@ static int probe(struct platform_device *pdev)
 		/* Create zone */
 		zone = devm_thermal_zone_device_register(
 				dev, "eiois200_thermal", TRIP_NUM,
-				(1 << TRIP_NUM) - 1, (void *)ch, 
+				(1 << TRIP_NUM) - 1, (void *)ch,
 				&zone_ops, &zone_params, 0, 0);
 		if (!zone)
 			return PTR_ERR(zone);
@@ -502,7 +502,7 @@ static int probe(struct platform_device *pdev)
 			int hi = lo;
 
 			if (trip) {
-				hi = temps[trip-1];
+				hi = temps[trip - 1];
 				lo = hi < lo ? hi : lo; /* swap on invalid */
 			}
 
@@ -511,7 +511,7 @@ static int probe(struct platform_device *pdev)
 						(void *)TO_DRVDATA(ch, trip),
 						&cooling_ops);
 			if (IS_ERR(cdev[trip]))
-				dev_err_probe(dev, PTR_ERR(cdev[trip]), 
+				dev_err_probe(dev, PTR_ERR(cdev[trip]),
 					      "Create thermal cooling device failed:%ld\n",
 					      PTR_ERR(cdev[trip]));
 
@@ -525,11 +525,11 @@ static int probe(struct platform_device *pdev)
 			if (ret)
 				dev_warn(dev, "Error create cooling device enable sysfs\n");
 		}
-		
+
 #if defined(thermal_zone_device_enable)
 		thermal_zone_device_enable(zone);
-#endif		
-		dev_dbg(dev, "%s thermal protect up\n", therm_name[name]);		
+#endif
+		dev_dbg(dev, "%s thermal protect up\n", therm_name[name]);
 	}
 
 	return 0;

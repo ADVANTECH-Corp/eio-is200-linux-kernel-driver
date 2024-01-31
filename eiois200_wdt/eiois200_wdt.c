@@ -144,7 +144,7 @@ static int irq;
 module_param(irq, int, 0);
 MODULE_PARM_DESC(irq, "The IRQ number for IRQ event");
 
-static int timeout = 0;
+static int timeout;
 module_param(timeout, int, 0444);
 MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 

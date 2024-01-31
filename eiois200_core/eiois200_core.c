@@ -240,7 +240,7 @@ static ssize_t info_show(struct device *dev,
 #define PMC_DEVICE_ATTR_RO(_name) \
 static ssize_t _name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
-    return info_show(dev, attr, buf); \
+	return info_show(dev, attr, buf); \
 } \
 static DEVICE_ATTR_RO(_name)
 
@@ -466,7 +466,7 @@ int eiois200_core_pmc_wait(struct device *dev,
 		usleep_range(cnt, 2 * cnt);
 
 	} while (ktime_before(ktime_get(), time_end));
-	
+
 	return -ETIME;
 }
 EXPORT_SYMBOL_GPL(eiois200_core_pmc_wait);

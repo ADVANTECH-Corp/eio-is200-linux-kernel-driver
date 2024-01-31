@@ -30,10 +30,10 @@ function show_title
 # to be: $A = `ternary "[ $B == $C ]" ?  "$D" :  "$E"`
 #                      |<--- $1 --->| $2  $3  $4  $5
 function ternary {
-	
+
 	if eval "$1" ; then
 		echo -e "$3"
-	else	
+	else
 		echo -e "$5"
 	fi
 }
@@ -57,7 +57,7 @@ function WdtSub1Menu
 	if [ $? -ne 0 ]; then
 		return `echo -p "please install wdctl"`
 	fi
-	
+
 	# find the device name of watchdog#
 	for i in $(ls -v $SYSFS); do
 		local dev=`wdctl /dev/${i} 2> /dev/null | grep eiois200`
@@ -76,14 +76,14 @@ function WdtSub1Menu
 
 		sync
 		show_title
-		
-		echo "Watchdog"		
+
+		echo "Watchdog"
 		if [ "$Timeleft" != "0" ]; then
 			echo -e "\033[41m\033[30m\033[05mSystem reboots in ${Timeleft}(s)\033[0m"
 		else
 			echo -e
 		fi
-		
+
 		echo -e "0) Back to Main menu(Stop watchdog)"
 		echo -e "1) set timeout value:" `cat /sys/class/watchdog/$wdt/timeout`
 		echo -e "2) Start / Trigger"
@@ -136,19 +136,19 @@ function HwmSub1Menu
 			break
 		fi
 	done
-		
+
 	if [ $hwm_dev == ""]; then
 		return `read -p"Can't find eiois200 hwmon device..."`
 	fi
-	
+
 	show_title
-	
+
 	while :
-	do		
+	do
 		echo -e "\033[4;0H"
-		echo -e "Hardware Monitor"		
-		
-		echo -e "\nVoltage(mV): "		
+		echo -e "Hardware Monitor"
+
+		echo -e "\nVoltage(mV): "
 		for file in $hwm_dev/in*input; do
 			if [ -f "$file" ]; then
 				label=`cat ${file%input}label`
@@ -194,14 +194,14 @@ function SmartFanSub1Menu
 	for dev in $(ls -v $SYSFS); do
  		if [ -e $SYSFS/$dev/type ] &&
 		   [ `cat $SYSFS/$dev/type` == "eiois200_fan" ]; then
-			names[${#names[@]}]=$dev 			
+			names[${#names[@]}]=$dev
 		fi
 	done
 
 	if [ "${#names[@]}" == "0" ]; then
 		return `read -p"Can't find Smart Fan..."`
 	fi
-	
+
 	while : ; do
 		local tz_dev=$SYSFS/${names[${i}]}
 		local mode=`cat $tz_dev/fan_mode`
@@ -209,13 +209,13 @@ function SmartFanSub1Menu
 		local dev_lst=()
 		local sel
 		local val
-		
+
 		for ((j=0 ; j < ${#names[@]} ; j=j+1)); do
 			dev_lst+=`ternary "[ $j == $i ]" ? "[${names[j]}]" : " ${names[j]} "`
 		done
-		
+
 		show_title
-		
+
 		echo -e "Smart Fan Controller"
 		echo -e
 		echo -e "0) Back to Main menu"
@@ -228,7 +228,7 @@ function SmartFanSub1Menu
 		echo -e "6) High Limit		:" $((`cat $tz_dev/trip_point_0_temp` / 1000))
 		echo -e "7) Max PWM		:" `cat $tz_dev/cdev0/max_state`
 		echo -e "8) Min PWM		:" `cat $tz_dev/cdev1/max_state`
-		echo -e 
+		echo -e
 		read -t0.1 -n1 -p"Enter your choice: " sel
 		echo -e
 
@@ -236,12 +236,12 @@ function SmartFanSub1Menu
 		"0")
 			return 1;;
 		"1")
-			i=$(((i + 1) % ${#names[@]}));;			
+			i=$(((i + 1) % ${#names[@]}));;
 		"2")
 			case $mode in
-			 "Stop")   echo Full   > $tz_dev/fan_mode;;				
-			 "Full")   echo Manual > $tz_dev/fan_mode;;				
-			 "Manual") echo Auto   > $tz_dev/fan_mode;;				
+			 "Stop")   echo Full   > $tz_dev/fan_mode;;
+			 "Full")   echo Manual > $tz_dev/fan_mode;;
+			 "Manual") echo Auto   > $tz_dev/fan_mode;;
 			 "Auto")   echo Stop   > $tz_dev/fan_mode;;
 			esac
 			;;
@@ -259,7 +259,7 @@ function SmartFanSub1Menu
 			;;
 		"6")
 			read -p"High Stop Limit (0 ~ 255 milli-Celsius): " val
-			echo ${val}000 > $tz_dev/trip_point_0_temp			
+			echo ${val}000 > $tz_dev/trip_point_0_temp
 			;;
 		"7")
 			read -p"Max PWM (0 ~ 100 %): " val
@@ -269,7 +269,7 @@ function SmartFanSub1Menu
 			read -p"Min PWM (0 ~ 100 %): " val
 			echo ${val} > $tz_dev/cdev1/set_max_state
 			;;
-		esac		
+		esac
 	done
 }
 
@@ -293,7 +293,7 @@ function ThermalSub1Menu
 	done
 
 	if [ "${#names[@]}" == "0" ]; then
-		return `read "Can't find thermal protect"`		
+		return `read -p"Can't find thermal protect..."`
 	fi
 
 	while :
@@ -304,7 +304,7 @@ function ThermalSub1Menu
 		local trigger=`cat $trigger_fs`
 		local state=`cat $state_fs`
 		local temp=`cat $fs/temp`
-		
+
 		show_title
 
 		echo -e "Thermal Protection"
@@ -320,12 +320,12 @@ function ThermalSub1Menu
 		echo -e
 		read -t1 -n1 -p"Select the item you want to set: " sel
 		echo -e
-		
+
 		case $sel in
 		"0")
 			return 1
 			;;
-		"1")		
+		"1")
 			i=$(( (i + 1) % ${#names[@]} ))
 			;;
 		"2")
@@ -369,16 +369,16 @@ function GpioSub1Menu
 			break
 		fi
 	done
-	
+
 	if [[ $base -eq 0 ]]; then
 		return `read -p"GPIO device not found..."`
 	fi
 
-	while : ; do		
+	while : ; do
 		local num=$((${base}+${shift}))
 		local path=${SYSFS}/gpio${num}
-		
-		echo ${num} > ${SYSFS}/export		
+
+		echo ${num} > ${SYSFS}/export
 		dir=`cat ${path}/direction`
 		state=`cat ${path}/value`
 		echo ${num} > ${SYSFS}/unexport
@@ -392,7 +392,7 @@ function GpioSub1Menu
 
 		read -t1 -n1 -p "Select the item you want to set: " sel
 		echo -e
-		
+
 		case $sel in
 		"0")
 			return 1
@@ -455,16 +455,16 @@ function BlSub1Menu
 		local bl_power_invert=`cat ${PARAM}/bl_power_invert`
 
 		show_title
-		
+
 		printf "Backlight: $bl_name\n\n"
 		printf "0) Back to Main menu\n"
 		printf "1) Brightness value	: %d (0 to %d)\n" $bri $max
-		printf "2) Brightness frequency\t: $bri_freq Hz\n"		
+		printf "2) Brightness frequency\t: $bri_freq Hz\n"
 		printf "3) Brightness invert	: %s\n" `ternary "[[ \"$((bri_invert&1))\"      == \"1\" ]]" ? On : Off`
 		printf "4) Power		: %s\n" `ternary "[[ \"$bl_power\"        == \"1\" ]]" ? On : Off`
 		printf "5) Power invert\t	: %s\n" `ternary "[[ \"$bl_power_invert\" == \"1\" ]]" ? On : Off`
 		printf "\n"
-		
+
 		read -n1 -p"Enter your choice: " sel
 		echo -e
 
@@ -481,7 +481,7 @@ function BlSub1Menu
 		"2")
 			read -p"Input PWM freqeuency(Hz): " val
 
-			if [ $val -ge 10 ]; then 
+			if [ $val -ge 10 ]; then
 				rmmod eiois200_bl
 				modprobe eiois200_bl bri_freq=${val}
 				sleep 0.2
@@ -513,7 +513,7 @@ function SMBusSub2Probe
 {
 	echo -e
 	echo "Slave address of existed devices (Hex):" \
-	     `i2cdetect -y $1 | sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
+	     `i2cdetect -y -a $1 | sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
 	echo -e
 	read -n1 -t2 -p"Press ENTER to continue..."
 }
@@ -531,23 +531,23 @@ function SMBusSub2Read
 	local sel
 	local val
 
-	while : ; do	
+	while : ; do
 		show_title
-		
+
 		case $len in
-		 0) protocal="Block Read";;
-		 1) protocal="Receive Byte";;
-		 2) protocal="Read Byte";;
-		 3) protocal="Read Word";;
-		 *) protocal="Block Read";;
+		 0) protocol="Block Read";;
+		 1) protocol="Receive Byte";;
+		 2) protocol="Read Byte";;
+		 3) protocol="Read Word";;
+		 *) protocol="Block Read";;
 		esac
-				
+
 		printf "SMBus Read Data: i2c-$1\n\n"
 		printf "0) Back to smbus menu\n"
-		printf "1) Protocal : $protocal\n"
+		printf "1) Protocol : $protocol\n"
 		printf "2) Slave Address : %d (0x%X)\n" $addr $addr
 		printf "3) Command : %d (0x%X)\n" $cmd $cmd
-		printf "4) Run\n\n"		
+		printf "4) Run\n\n"
 		read -n1 -p"Enter your choice: " sel
 		echo -e
 
@@ -560,14 +560,14 @@ function SMBusSub2Read
 			;;
 		"2")
 			read -p"Slave Address: " val;
-			
+
 			if [ -n "$val" ]; then
 				addr=$val
 			fi
 			;;
 		"3")
 			read -p"Command: " val;
-			
+
 			if [ -n "$val" ]; then
 				cmd=$val
 			fi
@@ -582,7 +582,7 @@ function SMBusSub2Read
 				read -p"Not supported... "
 				continue;;
 			esac
-			
+
 			echo -e "\n${expr}"
 			eval "$expr"
 			read -n1 -t2 -p"Read transfer `ternary "[[ $? -eq 0 ]]" ? "Success\n" : "Fail\n"` ..."
@@ -601,21 +601,21 @@ function SMBusSub2Write
 	local data=()
 	local expr
 	local sel
-	
+
 	while : ; do
 		show_title
 
 		case ${#data[@]} in
-		 0) protocal="Quick Write";;
-		 1) protocal="Send Byte";;
-		 2) protocal="Write Byte";;
-		 3) protocal="Write Word";;
-		 *) protocal="Block Write";;
+		 0) protocol="Quick Write";;
+		 1) protocol="Send Byte";;
+		 2) protocol="Write Byte";;
+		 3) protocol="Write Word";;
+		 *) protocol="Block Write";;
 		esac
 
-		printf "SMBus Write Data: i2c-$1\n\n" 
+		printf "SMBus Write Data: i2c-$1\n\n"
 		printf "0) Back to SMBus menu\n"
-		printf " ) Protocol: $protocal\n"
+		printf " ) Protocol: $protocol\n"
 		printf "1) Slave Address : %d (0x%02X) (7-bit)\n" $addr $addr
 		echo -e " ) Command : ${data[0]}"
 		echo -e " ) Write length : ${#data[@]}"
@@ -639,13 +639,13 @@ function SMBusSub2Write
 			case ${#data[@]} in
 			 0)
 				expr="i2cdetect -y -a -q ${host} $addr $addr"
-				
+
 				echo -e "\n" $expr "\n"
 				val=`$expr`
 				read -p"Write transfer $(ternary "[[ \"\$val\" == *\"--\"* ]]" ? "fail\n" : "Success\n") ..."
 
 				continue
-				;;				
+				;;
 			 1)	expr="i2cset -y -f -a ${host} $addr ${data[@]}";;
 			 2)	expr="i2cset -y -f -a ${host} $addr ${data[@]}";;
 			 3)	expr="i2cset -y -f -a ${host} $addr ${data[0]} $((data[1] * 0x100 + data[2])) w";;
@@ -681,7 +681,7 @@ function SMBusSub1Menu
 	# find the SMBus# and save to array
 	for i in $(ls -v $SYSFS); do
 		if [ -d $SYSFS/$i ] &&
-		   [ $(cat $SYSFS/$i/name | grep "eiois200") != "" ]; then
+		   [ "$(cat $SYSFS/$i/name | grep "eiois200")" != "" ]; then
 			hosts[count++]=$(echo $i | sed 's/i2c-//g')
 		fi
 	done
@@ -710,7 +710,7 @@ function SMBusSub1Menu
 		echo -e "3) Read"
 		echo -e "4) Write\n"
 		read -n1 -p "Enter your choice: " sel
-		echo -e 
+		echo -e
 
 		case $sel in
 		"0")
@@ -759,7 +759,7 @@ function I2CSub2Read
 
 	while : ; do
 		show_title
-		
+
 		printf "I2C Read Data: i2c-$host\n\n"
 		printf "0) Back to I2C menu\n"
 		printf "1) Slave Address : %d (0x%X) ( (7-bit)\n" $addr $addr
@@ -787,7 +787,7 @@ function I2CSub2Read
 			;;
 		"3")
 			read -p"Read Length: " val
-			
+
 			if [ -n "$val" ]; then
 				len=$val
 			fi
@@ -811,20 +811,20 @@ function I2CSub2Write
 	local host=$1
 	local addr=0
 	local data=()
-	
+
 	while : ; do
 		local val
 		local sel
-		
+
 		show_title
-		
+
 		printf "I2C Write Data: i2c-$host \n\n"
 		printf "0) Back to I2C menu\n"
 		printf "1) Slave Address: %d (0x%X) (7-bit)\n" $addr $addr
 		printf " ) Command	: ${data[0]}\n"
 		printf " ) Length	: ${#data[@]}\n"
 		echo -e "2) Write Data	: ${data[@]}"
-		printf "3) Run\n\n"		
+		printf "3) Run\n\n"
 		read -n1 -p"Enter your choice: " sel;
 		echo -e "\n"
 
@@ -859,10 +859,10 @@ function I2CSub2WriteRead
 	local sel
 	local val
 	local expr=""
-	
+
 	while : ; do
 		show_title
-		
+
 		printf "I2C Write Read Combine: i2c-$host\n\n"
 		printf "0) Back to I2C menu\n"
 		printf "1) Slave Address: %d (0x%X) (7-bit)\n" $addr $addr
@@ -884,9 +884,9 @@ function I2CSub2WriteRead
 			if [ -n "$val" ]; then
 				addr=$val
 			fi
-			;;		
+			;;
 		"2")
-			echo -e p"Input a series of HEX value (Like 0x01 0x02 0x03 ...): \c" 
+			echo -e p"Input a series of HEX value (Like 0x01 0x02 0x03 ...): \c"
 			read -a data
 			;;
 		"3")
@@ -898,16 +898,16 @@ function I2CSub2WriteRead
 			;;
 		"4")
 			if [ ${#data[@]} -eq 0 ]; then
-				expr="i2ctransfer -f -a -y $host r${len}@$addr"				
+				expr="i2ctransfer -f -a -y $host r${len}@$addr"
 			elif [ $len -eq 0 ]; then
 				expr="i2ctransfer -f -a -y $host w${#data[@]}@$addr ${data[@]}"
 			else
 				expr="i2ctransfer -f -a -y $host w${#data[@]}@$addr ${data[@]} r$len"
 			fi
-			
+
 			echo -e "$expr"
 			eval "$expr"
-			read -n1 -t2 -p "I2C Write Read Combined transfer `ternary "[ $? -eq 0 ]" ? "Success" : "Fail"`..."			
+			read -n1 -t2 -p "I2C Write Read Combined transfer `ternary "[ $? -eq 0 ]" ? "Success" : "Fail"`..."
 			;;
 		*)
 			;;
@@ -925,12 +925,12 @@ function I2CSub1Menu
 	local i=0
 	local hosts=()
 	local val
-	
+
 	i2cdetect -l > /dev/null 2>&1
-	if [ $? -ne 0 ]; then			
+	if [ $? -ne 0 ]; then
 		return `read -p"Please install i2c-tools"`
 	fi
-	
+
 	# find the I2C# and save to array
 	for I2CN in $(ls -v $SYSFS); do
 		if [ -d $SYSFS/$I2CN ] &&
@@ -938,23 +938,23 @@ function I2CSub1Menu
 			hosts[${#hosts[@]}]=$(echo $I2CN | sed 's/i2c-//g')
 		fi
 	done
-	
+
 	if [[ ${#hosts[@]} -eq 0 ]]; then
-		return `read -p"No I2C adapter..."`		
+		return `read -p"No I2C adapter..."`
 	fi
-	
+
 	while : ; do
 		local name=$(cat $SYSFS/i2c-${hosts[$i]}/name | sed 's/eiois200-//g')
 		local i2c_freq=`cat ${PARAM}/${name: -4}_freq`
 		local lst=
 		local sel=0
-		
+
 		for ((j=0 ; j < ${#hosts[@]} ; j++)); do
 			lst+=`ternary "[ $i == $j ]" ? "[i2c${hosts[j]}]" : " i2c${hosts[j]} "`
 		done
 
 		show_title
-		
+
 		echo -e "I2C"
 		echo -e
 		echo -e "0) Back to Main menu"
@@ -1006,9 +1006,9 @@ function InfoSub1Menu
 {
 	local DIR=/sys/bus/isa/devices/eiois200_core.0
 	local up_time=$(uptime | cut -d "p" -f 2 | cut -d "," -f 1)
-	
+
 	show_title
-	
+
 	echo -e "Information"
 	echo -e
 	echo -e "Up time			:$up_time"
@@ -1039,14 +1039,14 @@ function MainMenu
 {
 	local DRV_VERSION=$(modinfo eiois200_core | grep -sw version: | cut -d ":" -f 2 | sed 's/^[[:space:]]*//g')
 
-	if [ "$USER" != "root" ]; then		
-		return `read -p"please run as root..."`		
+	if [ "$USER" != "root" ]; then
+		return `read -p"please run as root..."`
 	fi
-	
+
 	while :
 	do
 		show_title
-		
+
 		echo -e "Main (EIOIS200 driver demo script)"
 		echo -e
 		echo -e "0) Terminate this program"
@@ -1063,7 +1063,7 @@ function MainMenu
 		echo -e
 
 		case $sel in
-		 0) return 0;;		
+		 0) return 0;;
 		 1) WdtSub1Menu;;
 		 2) HwmSub1Menu;;
 		 3) SmartFanSub1Menu;;

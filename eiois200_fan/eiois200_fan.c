@@ -124,7 +124,7 @@ static char fan_name[0x20][NAME_SIZE + 1] = {
 	"", "", "", "", "OEM0", "OEM1", "OEM2", "OEM3",
 };
 
-static int timeout = 0;
+static int timeout;
 module_param(timeout, int, 0444);
 MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 
@@ -411,7 +411,7 @@ static void thermal_zone_device_release(struct device *dev, void *res)
 
 static struct thermal_zone_device *
 devm_thermal_zone_device_register(struct device *dev,
-	const char *type, int trips, int mask, void *devdata,
+				  const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
 	struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
@@ -498,9 +498,10 @@ static int probe(struct platform_device *pdev)
 		}
 
 		/* Create zone */
-		zone = devm_thermal_zone_device_register(dev,
-				"eiois200_fan", TRIP_NUM, (1 << TRIP_NUM) - 1,
-				(void *)fan, &zone_ops, &zone_params, 0, 0);
+		zone = devm_thermal_zone_device_register(
+				dev, "eiois200_fan", TRIP_NUM,
+				(1 << TRIP_NUM) - 1, (void *)fan,
+				&zone_ops, &zone_params, 0, 0);
 		if (!zone)
 			return PTR_ERR(zone);
 
