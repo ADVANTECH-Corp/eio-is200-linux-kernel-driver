@@ -194,7 +194,7 @@ static int smb1_freq = USE_DEFAULT;
 module_param(smb1_freq, int, 0444);
 MODULE_PARM_DESC(smb1_freq, "Set EIO-IS200's SMB1 freq.\n");
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
+#if KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE
 static void devm_i2c_adapter_release(struct device *dev, void *res)
 {
 	i2c_del_adapter(*(struct i2c_adapter **)res);
@@ -508,7 +508,7 @@ static int set_freq(struct dev_i2c *i2c, int freq)
 		return -EINVAL;
 	}
 
-	speed = freq < I2C_THRESHOLD_SCLH ? I2C_SCLH_LOW : I2C_SCLH_HIGH ;
+	speed = freq < I2C_THRESHOLD_SCLH ? I2C_SCLH_LOW : I2C_SCLH_HIGH;
 
 	pre1 = (uint8_t)(CHIP_CLK / speed);
 	pre2 = (uint8_t)((speed / freq) - 1);
@@ -532,11 +532,11 @@ static int get_freq(struct dev_i2c *i2c, int *freq)
 	I2C_READ(i2c, reg1, &pre1);
 	I2C_READ(i2c, reg2, &pre2);
 
-	clk = pre2 & I2C_SCL_FAST_MODE ? I2C_SCLH_HIGH : I2C_SCLH_LOW ;
+	clk = pre2 & I2C_SCL_FAST_MODE ? I2C_SCLH_HIGH : I2C_SCLH_LOW;
 	pre2 &= ~I2C_SCL_FAST_MODE;
 
 	*freq = clk / (pre2 + 1);
-	
+
 	return 0;
 }
 
@@ -908,9 +908,8 @@ static int load_i2c(struct device *dev, enum i2c_ch ch, struct dev_i2c *i2c)
 	    regmap_write(regmap, REG_PNP_INDEX, REG_BASE_LO) ||
 	    regmap_read(regmap, REG_PNP_DATA, &base_lo) ||
 	    regmap_write(regmap, REG_PNP_INDEX, REG_EXT_MODE_EXIT)) {
-
 		mutex_unlock(&eiois200_dev->mutex);
-		
+
 		dev_err(dev, "error read/write I2C[%d] IO port\n", ch);
 		return -EIO;
 	}
@@ -933,7 +932,7 @@ static int load_i2c(struct device *dev, enum i2c_ch ch, struct dev_i2c *i2c)
 		set_freq(i2c, *freq);
 
 	get_freq(i2c, freq);
-	
+
 	return 0;
 }
 
@@ -956,7 +955,7 @@ static int probe(struct platform_device *pdev)
 	int ret = 0;
 	enum i2c_ch ch;
 	struct device *dev = &pdev->dev;
-	
+
 	if ((timeout < I2C_TIMEOUT / 100) || (timeout > I2C_TIMEOUT * 100)) {
 		dev_err(dev, "Error timeout value %d\n", timeout);
 		return -EINVAL;
@@ -965,7 +964,7 @@ static int probe(struct platform_device *pdev)
 	eiois200_dev = dev_get_drvdata(dev->parent);
 	if (!eiois200_dev) {
 		dev_err(dev, "Error contact eiois200_core %d\n", ret);
-		return -ENXIO ;
+		return -ENXIO;
 	}
 
 	regmap = dev_get_regmap(dev->parent, NULL);
@@ -978,10 +977,8 @@ static int probe(struct platform_device *pdev)
 		struct dev_i2c *i2c;
 
 		i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
-		if (!i2c) {
-			dev_err(dev, "Error allocate memory\n");
+		if (!i2c)
 			return -ENOMEM;
-		}
 
 		if (load_i2c(dev, ch, i2c))
 			continue;

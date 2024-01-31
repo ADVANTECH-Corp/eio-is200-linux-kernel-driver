@@ -28,13 +28,13 @@
 #define DEFAULT_TIMEOUT 5000
 
 /**
-* Timeout: Default timeout in microseconds when a PMC command's
-* timeout is unspecified. PMC command responses typically range
-* from 200us to 2ms. 5ms is quite a safe value for timeout. In
-* In some cases, responses are longer. In such situations, please
-* adding the timeout parameter loading related sub-drivers or
-* this core driver (not recommended).
-*/
+ * Timeout: Default timeout in microseconds when a PMC command's
+ * timeout is unspecified. PMC command responses typically range
+ * from 200us to 2ms. 5ms is quite a safe value for timeout. In
+ * In some cases, responses are longer. In such situations, please
+ * adding the timeout parameter loading related sub-drivers or
+ * this core driver (not recommended).
+ */
 static uint timeout = DEFAULT_TIMEOUT;
 module_param(timeout, uint, 0444);
 MODULE_PARM_DESC(timeout,
@@ -66,7 +66,7 @@ static struct mfd_cell mfd_devs[] = {
 static struct regmap_range is200_range[] = {
 	 regmap_reg_range(EIOIS200_PNP_INDEX,	  EIOIS200_PNP_DATA),
 	 regmap_reg_range(EIOIS200_SUB_PNP_INDEX, EIOIS200_SUB_PNP_DATA),
- 	 regmap_reg_range(0x200,		  0x3FF),
+	 regmap_reg_range(0x200,		  0x3FF),
 };
 
 static const struct regmap_access_table volatile_regs = {
@@ -74,7 +74,7 @@ static const struct regmap_access_table volatile_regs = {
 	.n_yes_ranges = ARRAY_SIZE(is200_range),
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+#if KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE
 static const struct regmap_config pnp_regmap_config = {
 	.name		= "eiois200_core",
 	.reg_bits	= 16,
@@ -83,32 +83,33 @@ static const struct regmap_config pnp_regmap_config = {
 	.io_port	= true,
 	.cache_type	= REGCACHE_NONE,
 };
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
+#elif KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
 
 static int read(void *context, const void *reg_buf, size_t reg_size,
-		    void *val_buf, size_t val_size) 
+		void *val_buf, size_t val_size)
 {
-	u16 *port = (u16*)reg_buf;
-	u8 *val = (u8*)val_buf;
+	u16 *port = (u16 *)reg_buf;
+	u8 *val = (u8 *)val_buf;
 
 	*val = inb(*port);
 
 	return 0;
 }
 
-static int write(void *context, const void *data, size_t count) 
+static int write(void *context, const void *data, size_t count)
 {
 	struct {
 		u16 reg : 16;
 		u8 val : 8;
-	} *p = (void*)data;
+	} *p = (void *)data;
 
 	outb(p->val, p->reg);
 	return 0;
 }
+
 static int reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	*(u8*)val = inb(reg);
+	*(u8 *)val = inb(reg);
 	return 0;
 }
 
@@ -118,7 +119,6 @@ static int reg_write(void *context, unsigned int reg, unsigned int val)
 	return 0;
 }
 
-		    
 static const struct regmap_config pnp_regmap_config = {
 	.name		= "eiois200_core",
 	.reg_bits	= 16,
@@ -126,14 +126,14 @@ static const struct regmap_config pnp_regmap_config = {
 	.volatile_table = &volatile_regs,
 	.read		= read,
 	.write		= write,
-    	.reg_read  	= reg_read,
+	.reg_read	= reg_read,
 	.reg_write	= reg_write,
 };
 #else
 //#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 static int reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	*val = (uint) inb(reg);
+	*val = (uint)inb(reg);
 	return 0;
 }
 
@@ -148,10 +148,11 @@ static const struct regmap_config pnp_regmap_config = {
 	.reg_bits	= 16,
 	.val_bits	= 8,
 	.volatile_table = &volatile_regs,
-    	.reg_read  	= reg_read,
+	.reg_read	= reg_read,
 	.reg_write	= reg_write,
 	.fast_io	= true,
 };
+
 //#else
 //	#error "Unsupported kernel version! This driver requires at least Linux kernel 5.10.0"
 #endif
@@ -164,12 +165,12 @@ static struct {
 	int  size;
 	enum {
 		HEX,
-		NUMBER,		
+		NUMBER,
 		PNP_ID,
 	} type;
-		
+
 } attrs[] = {
-	{ "board_name",	0x53, 0x10, 0, 16 },
+	{ "board_name",		0x53, 0x10, 0, 16 },
 	{ "board_serial",	0x53, 0x1F, 0, 16 },
 	{ "board_manufacturer", 0x53, 0x11, 0, 16 },
 	{ "board_id",		0x53, 0x1E, 0,  4 },
@@ -182,13 +183,12 @@ static struct {
 	{ "platform_revision",	0x53, 0x14, 0,  4 },
 	{ "eapi_version",	0x53, 0x30, 0,  4 },
 	{ "eapi_id",		0x53, 0x31, 0,  4 },
-	{ "boot_count",	0x55, 0x10, 0,  4, NUMBER },
+	{ "boot_count",		0x55, 0x10, 0,  4, NUMBER },
 	{ "powerup_hour",	0x55, 0x11, 0,  4, NUMBER },
-	{ "pnp_id", 		0x53, 0x04, 0x68,  4, PNP_ID },
+	{ "pnp_id",		0x53, 0x04, 0x68,  4, PNP_ID },
 };
 
-void __iomem *iomem = NULL;
-
+void __iomem *iomem;
 
 static ssize_t info_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
@@ -199,7 +199,7 @@ static ssize_t info_show(struct device *dev,
 		int ret;
 		char str[32] = "";
 		int val;
-		
+
 		struct pmc_op op = {
 			.cmd     = attrs[i].cmd,
 			.control = attrs[i].ctrl,
@@ -207,9 +207,9 @@ static ssize_t info_show(struct device *dev,
 			.payload = (u8 *)str,
 			.size    = attrs[i].size,
 		};
-		
-		if (strcmp(attr->attr.name, attrs[i].name)) 
-			continue ;
+
+		if (strcmp(attr->attr.name, attrs[i].name))
+			continue;
 
 		ret = eiois200_core_pmc_operation(dev, &op);
 		if (ret)
@@ -218,14 +218,14 @@ static ssize_t info_show(struct device *dev,
 		if (attrs[i].size != 4)
 			return sprintf(buf, "%s\n", str);
 
-		val = *(u32 *)str;		
-		
-		if (attrs[i].type == HEX) 
+		val = *(u32 *)str;
+
+		if (attrs[i].type == HEX)
 			return sprintf(buf, "0x%X\n", val);
 
-		if (attrs[i].type == NUMBER) 
+		if (attrs[i].type == NUMBER)
 			return sprintf(buf, "%d\n", val);
-			
+
 		/* Should be pnp_id */
 		return sprintf(buf, "%c%c%c, %X\n",
 			       (val >> 14 & 0x3F) + 0x40,
@@ -240,7 +240,7 @@ static ssize_t info_show(struct device *dev,
 #define PMC_DEVICE_ATTR_RO(_name) \
 static ssize_t _name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
-    return info_show(dev, attr, buf);\
+    return info_show(dev, attr, buf); \
 } \
 static DEVICE_ATTR_RO(_name)
 
@@ -262,23 +262,23 @@ PMC_DEVICE_ATTR_RO(powerup_hour);
 PMC_DEVICE_ATTR_RO(pnp_id);
 
 static struct attribute *pmc_attrs[] = {
-    &dev_attr_board_name.attr,
-    &dev_attr_board_serial.attr,
-    &dev_attr_board_manufacturer.attr,
-    &dev_attr_firmware_version.attr,
-    &dev_attr_firmware_build.attr,
-    &dev_attr_firmware_date.attr,
-    &dev_attr_chip_id.attr,
-    &dev_attr_chip_detect.attr,
-    &dev_attr_platform_type.attr,
-    &dev_attr_platform_revision.attr,
-    &dev_attr_board_id.attr,
-    &dev_attr_eapi_version.attr,
-    &dev_attr_eapi_id.attr,
-    &dev_attr_boot_count.attr,
-    &dev_attr_powerup_hour.attr,
-    &dev_attr_pnp_id.attr,
-    NULL
+	&dev_attr_board_name.attr,
+	&dev_attr_board_serial.attr,
+	&dev_attr_board_manufacturer.attr,
+	&dev_attr_firmware_version.attr,
+	&dev_attr_firmware_build.attr,
+	&dev_attr_firmware_date.attr,
+	&dev_attr_chip_id.attr,
+	&dev_attr_chip_detect.attr,
+	&dev_attr_platform_type.attr,
+	&dev_attr_platform_revision.attr,
+	&dev_attr_board_id.attr,
+	&dev_attr_eapi_version.attr,
+	&dev_attr_eapi_id.attr,
+	&dev_attr_boot_count.attr,
+	&dev_attr_powerup_hour.attr,
+	&dev_attr_pnp_id.attr,
+	NULL
 };
 
 ATTRIBUTE_GROUPS(pmc);
@@ -299,15 +299,15 @@ static int is200_pnp_read(struct device *dev,
 	return val;
 }
 
-static void is200_pnp_write(struct device *dev, 
+static void is200_pnp_write(struct device *dev,
 			    struct eiois200_dev_port *port,
-			    u8 idx, 
+			    u8 idx,
 			    u8 data)
 {
 	if (regmap_write(regmap_is200, port->idx_port, idx) ||
 	    regmap_write(regmap_is200, port->data_port, data))
 		dev_err(dev, "Error port write 0x%X %X\n",
-		       port->idx_port, port->data_port);
+			port->idx_port, port->data_port);
 }
 
 static void is200_pnp_enter(struct device *dev,
@@ -328,9 +328,9 @@ static void is200_pnp_leave(struct device *dev,
 }
 
 /* Following are EIO-IS200 IO port access functions for PMC command */
-static int pmc_write_data(struct device *dev, 
-			  int id, 
-			  u8 value, 
+static int pmc_write_data(struct device *dev,
+			  int id,
+			  u8 value,
 			  u16 timeout)
 {
 	int ret;
@@ -341,12 +341,12 @@ static int pmc_write_data(struct device *dev,
 	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].data, value);
 	if (ret)
 		dev_err(dev, "Error PMC write %X:%X\n",
-		       eiois200_dev->pmc[id].data, value);
+			eiois200_dev->pmc[id].data, value);
 
 	return ret;
 }
 
-static int pmc_write_cmd(struct device *dev, 
+static int pmc_write_cmd(struct device *dev,
 			 int id,
 			 u8 value,
 			 u16 timeout)
@@ -356,17 +356,16 @@ static int pmc_write_cmd(struct device *dev,
 	if (WAIT_IBF(dev, id, timeout))
 		return -ETIME;
 
-	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].cmd, value);	
+	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].cmd, value);
 	if (ret)
 		dev_err(dev, "Error PMC write %X:%X\n",
-		        eiois200_dev->pmc[id].data, value);
-		
+			eiois200_dev->pmc[id].data, value);
 
 	return ret;
 }
 
 static int pmc_read_data(struct device *dev,
-			 int id, 
+			 int id,
 			 u8 *value,
 			 u16 timeout)
 {
@@ -377,8 +376,8 @@ static int pmc_read_data(struct device *dev,
 
 	ret = regmap_read(regmap_is200, eiois200_dev->pmc[id].data, &val);
 	if (ret)
-		dev_err(dev, "Error PMC read %X\n", 
-			     eiois200_dev->pmc[id].data);
+		dev_err(dev, "Error PMC read %X\n",
+			eiois200_dev->pmc[id].data);
 	else
 		*value = val & 0xFF;
 
@@ -428,7 +427,7 @@ static void pmc_clear(struct device *dev, int id)
  *			%PMC_WAIT_OUTPUT for waiting output buffer empty.
  * max_duration:	The timeout value in usec.
  */
-int eiois200_core_pmc_wait(struct device *dev, 
+int eiois200_core_pmc_wait(struct device *dev,
 			   int id,
 			   enum eiois200_pmc_wait wait,
 			   uint max_duration)
@@ -440,7 +439,7 @@ int eiois200_core_pmc_wait(struct device *dev,
 	ktime_t time_end = ktime_add_us(ktime_get(), new_timeout);
 
 	if (new_timeout < TIMEOUT_MIN || new_timeout > TIMEOUT_MAX) {
-		dev_err(dev, 
+		dev_err(dev,
 			"Error timeout value: %dus. Timeout value should between %d and %ld\n",
 			new_timeout, TIMEOUT_MIN, TIMEOUT_MAX);
 		return -ETIME;
@@ -467,7 +466,7 @@ int eiois200_core_pmc_wait(struct device *dev,
 		usleep_range(cnt, 2 * cnt);
 
 	} while (ktime_before(ktime_get(), time_end));
-
+	
 	return -ETIME;
 }
 EXPORT_SYMBOL_GPL(eiois200_core_pmc_wait);
@@ -477,7 +476,7 @@ EXPORT_SYMBOL_GPL(eiois200_core_pmc_wait);
  * @dev:	The device structure pointer.
  * @op:		Pointer to an PMC command.
  */
-int eiois200_core_pmc_operation(struct device *dev, 
+int eiois200_core_pmc_operation(struct device *dev,
 				struct pmc_op *op)
 {
 	u8	i;
@@ -507,10 +506,10 @@ int eiois200_core_pmc_operation(struct device *dev,
 
 	for (i = 0; i < op->size; i++) {
 		if (read_cmd)
-			ret = pmc_read_data(dev, op->chip, 
+			ret = pmc_read_data(dev, op->chip,
 					    &op->payload[i], op->timeout);
 		else
-			ret = pmc_write_data(dev, op->chip, 
+			ret = pmc_write_data(dev, op->chip,
 					     op->payload[i], op->timeout);
 
 		if (ret)
@@ -526,7 +525,7 @@ err:
 
 	dev_err(dev, "PMC error duration:%lldus", ktime_to_us(ktime_sub(ktime_get(), t)));
 	dev_err(dev, ".cmd=0x%02X, .ctrl=0x%02X .id=0x%02X, .size=0x%02X .data=0x%02X%02X",
-	       op->cmd, op->control, op->device_id,
+		op->cmd, op->control, op->device_id,
 	       op->size, op->payload[0], op->payload[1]);
 
 	return ret;
@@ -534,7 +533,7 @@ err:
 EXPORT_SYMBOL_GPL(eiois200_core_pmc_operation);
 
 static int get_pmc_port(struct device *dev,
-			int id, 
+			int id,
 			struct eiois200_dev_port *port)
 {
 	struct _pmc_port *pmc = &eiois200_dev->pmc[id];
@@ -583,12 +582,12 @@ static int eiois200_init(struct device *dev)
 					 pnp_port[chip].idx_port,
 					 KBUILD_MODNAME))
 			continue;
-			
-		is200_pnp_enter(dev, port);			
+
+		is200_pnp_enter(dev, port);
 
 		chip_id  = is200_pnp_read(dev, port, EIOIS200_CHIPID1) << 8;
 		chip_id |= is200_pnp_read(dev, port, EIOIS200_CHIPID2);
-		
+
 		if (chip_id != EIOIS200_CHIPID &&
 		    chip_id != EIO201_211_CHIPID)
 			continue;
@@ -625,7 +624,7 @@ static uint8_t acpiram_access(struct device *dev, uint8_t offset)
 	u8  val;
 	int ret;
 	int timeout = 0;
-	
+
 	/* We only store information on primary EC */
 	int chip = 0;
 
@@ -681,7 +680,7 @@ static int firmware_code_base(struct device *dev)
 		return -ENODEV;
 	}
 
- err: 
+ err:
 	/* Codebase error. This should only happen on firmware error. */
 	dev_err(dev, "Codebase check fail: vendor: 0x%X, code: 0x%X, base: 0x%X\n",
 		ic_vendor, ic_code, code_base);
@@ -691,14 +690,14 @@ static int firmware_code_base(struct device *dev)
 static int eiois200_probe(struct device *dev, unsigned int id)
 {
 	int  ret = 0;
-	
+
 	iomem = devm_ioport_map(dev, 0, EIOIS200_SUB_PNP_DATA + 1);
 	if (IS_ERR(iomem))
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
 	regmap_is200 = devm_regmap_init_mmio(dev, iomem, &pnp_regmap_config);
-#else	
+#else
 	regmap_is200 = devm_regmap_init(dev, NULL, eiois200_dev, &pnp_regmap_config);
 #endif
 	if (IS_ERR(regmap_is200))
@@ -712,7 +711,7 @@ static int eiois200_probe(struct device *dev, unsigned int id)
 
 	if (eiois200_init(dev)) {
 		dev_dbg(dev, "No device found\n");
-		return -ENODEV;	
+		return -ENODEV;
 	}
 
 	if (firmware_code_base(dev)) {

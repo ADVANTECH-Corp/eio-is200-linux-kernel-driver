@@ -16,8 +16,8 @@
 #define MAX_DEV 128
 #define MAX_NAME 32
 
-static uint timeout = 2000;
-module_param(timeout, uint, 0664);
+static uint timeout = 0;
+module_param(timeout, uint, 0444);
 MODULE_PARM_DESC(timeout,
 		 "Default pmc command timeout in micro-seconds.\n");
 
@@ -164,29 +164,6 @@ static int para_idx(enum _sen_type type, u8 ctrl)
 
 	return 0;
 }
-
-#if 0
-static int pmc_write(enum _sen_type type, u8 dev_id, u8 ctrl, void *data)
-{
-	int idx = para_idx(type, ctrl);
-	struct   pmc_op op = {
-		 .cmd       = sen_info[type].cmd,
-		 .control   = ctrl,
-		 .device_id = dev_id,
-		 .size	    = ctrl_para[idx].size,
-		 .payload   = (u8 *)data,
-		 .timeout   = timeout,
-	};
-
-	if (idx == 0)
-		return -EINVAL;
-
-	if (!ctrl_para[idx].write)
-		return -EINVAL;
-
-	return eiois200_core_pmc_operation(NULL, &op);
-}
-#endif
 
 static int pmc_read(enum _sen_type type, u8 dev_id, u8 ctrl, void *data)
 {

@@ -118,6 +118,18 @@ static u32 type_regs[] = {
 	REG_PIN_EVENT_TIME,
 };
 
+static struct watchdog_info wdinfo = {
+	.identity = KBUILD_MODNAME,
+	.options  = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
+		    WDIOF_PRETIMEOUT | WDIOF_MAGICCLOSE,
+};
+
+static struct watchdog_device wddev = {
+	.info	     = &wdinfo,
+	.max_timeout = 0x7FFF,
+	.min_timeout = 1,
+};
+
 /* Pointer to the eiois200_core device structure */
 static struct eiois200_dev *eiois200_dev;
 
@@ -132,33 +144,25 @@ static int irq;
 module_param(irq, int, 0);
 MODULE_PARM_DESC(irq, "The IRQ number for IRQ event");
 
-static struct watchdog_info wdinfo = {
-	.identity = KBUILD_MODNAME,
-	.options  = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
-		    WDIOF_PRETIMEOUT | WDIOF_MAGICCLOSE,
-};
-
-static struct watchdog_device wddev = {
-	.info	     = &wdinfo,
-	.max_timeout = 0x7FFF,
-	.min_timeout = 1,
-};
+static int timeout = 0;
+module_param(timeout, int, 0444);
+MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
 
 static int wdt_set_timeout(struct watchdog_device *dev,
-			   unsigned int _timeout)
+			   unsigned int timeout)
 {
-	dev->timeout = _timeout;
-	dev_info(wdt.dev, "Set timeout: %d\n", _timeout);
+	dev->timeout = timeout;
+	dev_info(wdt.dev, "Set timeout: %d\n", timeout);
 
 	return 0;
 }
 
 static int wdt_set_pretimeout(struct watchdog_device *dev,
-			      unsigned int _pretimeout)
+			      unsigned int pretimeout)
 {
-	dev->pretimeout = _pretimeout;
+	dev->pretimeout = pretimeout;
 
-	dev_info(wdt.dev, "Set pretimeout: %d\n", _pretimeout);
+	dev_info(wdt.dev, "Set pretimeout: %d\n", pretimeout);
 
 	return 0;
 }
@@ -195,6 +199,7 @@ static int pmc(u8 cmd, u8 ctrl, void *payload)
 		.size     = ctrl <= REG_EVENT	   ? 1 :
 			    ctrl >= REG_IRQ_NUMBER ? 1 : 4,
 		.payload  = payload,
+		.timeout  = timeout,
 	};
 
 	return eiois200_core_pmc_operation(wdt.dev, &op);
@@ -635,7 +640,7 @@ static int wdt_probe(struct platform_device *pdev)
 						wdt_threaded_isr,
 						IRQF_SHARED, pdev->name, dev);
 	if (ret) {
-		dev_err(dev, "IRQ %d request fail:%d. Disabled.\n", 
+		dev_err(dev, "IRQ %d request fail:%d. Disabled.\n",
 			wdt.irq, ret);
 		return ret;
 	}
@@ -655,7 +660,7 @@ static int wdt_probe(struct platform_device *pdev)
 	/* Register watchdog */
 	ret = devm_watchdog_register_device(dev, &wddev);
 	if (ret) {
-		dev_err(dev, "Cannot register watchdog device (err: %d)\n", 
+		dev_err(dev, "Cannot register watchdog device (err: %d)\n",
 			ret);
 		return ret;
 	}

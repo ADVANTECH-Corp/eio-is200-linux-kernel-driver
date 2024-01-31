@@ -63,6 +63,10 @@ struct {
 	{ 3, 6 }, { 3, 7 }
 };
 
+static int timeout = 0;
+module_param(timeout, int, 0444);
+MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
+
 static int pmc_write(u8 ctrl, u8 dev_id, void *data)
 {
 	struct   pmc_op op = {
@@ -70,6 +74,7 @@ static int pmc_write(u8 ctrl, u8 dev_id, void *data)
 		 .control   = ctrl,
 		 .device_id = dev_id,
 		 .payload   = (u8 *)data,
+		 .timeout   = timeout,
 	};
 
 	if (ctrl > ARRAY_SIZE(ctrl_para))
@@ -90,6 +95,7 @@ static int pmc_read(u8 ctrl, u8 dev_id, void *data)
 		 .control   = ctrl,
 		 .device_id = dev_id,
 		 .payload   = (u8 *)data,
+		 .timeout   = timeout,
 	};
 
 	if (ctrl > ARRAY_SIZE(ctrl_para))

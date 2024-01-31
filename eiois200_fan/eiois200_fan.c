@@ -29,21 +29,21 @@
  * - Below Temp Stop, the fan stopped.
  *
  * (PWM)|
- *  	|
+ *	|
  * High |............................. ______________
  * (Max)|			      /:
- *  	|			     / :
- *  	|			    /  :
- *  	|			   /   :
- *  	|			  /    :
- *  	|			 /     :
- *  	|			/      :  
- *  	|		       /       :
+ *	|			     / :
+ *	|			    /  :
+ *	|			   /   :
+ *	|			  /    :
+ *	|			 /     :
+ *	|			/      :
+ *	|		       /       :
  *  Low	|.......... __________/	       :
- *  	|	    |	      :	       :
- *  	|	    |	      :	       :
+ *	|	    |	      :	       :
+ *	|	    |	      :	       :
  *    0	+===========+---------+--------+-------------
- *  	0 	   Stop	     Low      High	(Temp)
+ *	0	   Stop	     Low      High	(Temp)
  *
  * Copyright (C) 2023 Advantech Corporation. All rights reserved.
  */
@@ -124,6 +124,10 @@ static char fan_name[0x20][NAME_SIZE + 1] = {
 	"", "", "", "", "OEM0", "OEM1", "OEM2", "OEM3",
 };
 
+static int timeout = 0;
+module_param(timeout, int, 0444);
+MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
+
 static int pmc_cmd(struct device *dev, u8 cmd, u8 ctrl, u8 id, u8 len, void *data)
 {
 	struct pmc_op op = {
@@ -132,6 +136,7 @@ static int pmc_cmd(struct device *dev, u8 cmd, u8 ctrl, u8 id, u8 len, void *dat
 		.device_id = id,
 		.size	   = len,
 		.payload   = (u8 *)data,
+		.timeout   = timeout,
 	};
 
 	return eiois200_core_pmc_operation(dev, &op);
@@ -160,8 +165,11 @@ static ssize_t set_max_state_store(struct device *dev,
 	if (ret)
 		dev_err(dev, "Write cooling device max state error: %d\n", ret);
 
-//	thermal_cooling_device_update(cdev)
-
+#ifdef thermal_cooling_device_update
+	thermal_cooling_device_update(cdev)
+#else
+	cdev->max_state = max;
+#endif
 	return count;
 }
 
@@ -185,27 +193,27 @@ static ssize_t name_show(struct device *dev,
 }
 
 static ssize_t fan_mode_store(struct device *dev,
-				   struct device_attribute *attr,
+			      struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct thermal_zone_device *zone =
 			container_of(dev, struct thermal_zone_device, device);
 	long id = (long)zone->devdata;
 	int mode, val;
-	char name[4][8] = { "Stop", "Full", "Manual", "Auto" } ;
+	char name[4][8] = { "Stop", "Full", "Manual", "Auto" };
 	int ret;
-	
+
 	for (mode = 0; mode < ARRAY_SIZE(name); mode++) {
 		if (strncasecmp(buf, name[mode], strlen(name[mode])))
 			continue;
-		
-		ret = FAN_READ(&zone->device, CTRL_CTRL, id, &val);	
+
+		ret = FAN_READ(&zone->device, CTRL_CTRL, id, &val);
 		if (ret)
 			return -EIO;
-			
+
 		mode |= val & 0xFC;
 		ret = FAN_WRITE(&zone->device, CTRL_CTRL, id, &mode);
-		
+
 		return	ret ? ret : count;
 	}
 
@@ -213,27 +221,27 @@ static ssize_t fan_mode_store(struct device *dev,
 }
 
 static ssize_t fan_mode_show(struct device *dev,
-			 struct device_attribute *attr,
+			     struct device_attribute *attr,
 			 char *buf)
 {
 	struct thermal_zone_device *zone =
 			container_of(dev, struct thermal_zone_device, device);
 	long id = (long)zone->devdata;
 	int mode = 0;
-	char name[4][8] = { "Stop", "Full", "Manual", "Auto" } ;
+	char name[4][8] = { "Stop", "Full", "Manual", "Auto" };
 	int ret;
-	
-	ret = FAN_READ(&zone->device, CTRL_CTRL, id, &mode);	
+
+	ret = FAN_READ(&zone->device, CTRL_CTRL, id, &mode);
 	if (ret)
 		return -EIO;
-		
+
 	sprintf(buf, "%s\n", name[mode & 0x03]);
-	
+
 	return strlen(buf);
 }
 
 static ssize_t PWM_store(struct device *dev,
-				   struct device_attribute *attr,
+			 struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct thermal_zone_device *zone =
@@ -241,13 +249,13 @@ static ssize_t PWM_store(struct device *dev,
 	long id = (long)zone->devdata;
 	int val;
 	int ret;
-	
+
 	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
-	
+
 	if (val > 100)
 		val = 100;
-	
+
 	ret = FAN_WRITE(&zone->device, CTRL_VALUE, id, &val);
 	if (ret)
 		return ret;
@@ -256,7 +264,7 @@ static ssize_t PWM_store(struct device *dev,
 }
 
 static ssize_t PWM_show(struct device *dev,
-			 struct device_attribute *attr,
+			struct device_attribute *attr,
 			 char *buf)
 {
 	struct thermal_zone_device *zone =
@@ -264,13 +272,13 @@ static ssize_t PWM_show(struct device *dev,
 	long id = (long)zone->devdata;
 	int val = 0;
 	int ret;
-	
+
 	ret = FAN_READ(&zone->device, CTRL_VALUE, id, &val);
 	if (ret)
 		return ret;
-	
+
 	sprintf(buf, "%d\n", val);
-	
+
 	return strlen(buf);
 }
 
@@ -326,12 +334,12 @@ static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 {
 	long id = (long)zone->devdata;
 	int val, ret;
-	
+
 	if (temp < 1000)
 		return -EINVAL;
 
 	val = MILLICELSIUS_TO_DECI_KELVIN(temp);
-	
+
 	ret = FAN_WRITE(&zone->device, CTRL_THERM_HIGH + trip, id, &val);
 
 	return ret;
@@ -347,7 +355,7 @@ static int get_max_state(struct thermal_cooling_device *cdev,
 
 	if (trip <= TRIP_LOW)
 		return FAN_READ(&cdev->device, CTRL_PWM_HIGH + trip, id, state);
-	
+
 	return 0;
 }
 
@@ -364,7 +372,7 @@ static int get_cur_state(struct thermal_cooling_device *cdev,
 static int set_cur_state(struct thermal_cooling_device *cdev,
 			 unsigned long state)
 {
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 
 static void thermal_cooling_device_release(struct device *dev, void *res)
@@ -402,12 +410,11 @@ static void thermal_zone_device_release(struct device *dev, void *res)
 }
 
 static struct thermal_zone_device *
-devm_thermal_zone_device_register(
-	struct device *dev, 
+devm_thermal_zone_device_register(struct device *dev,
 	const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
 	struct thermal_zone_params *tzp,
-	int passive_delay, int polling_delay)	
+	int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device **ptr, *tzd;
 
@@ -418,7 +425,7 @@ devm_thermal_zone_device_register(
 
 	tzd = thermal_zone_device_register(type, trips, mask,
 					   devdata, ops, tzp,
-					   passive_delay,polling_delay);
+					   passive_delay, polling_delay);
 	if (IS_ERR(tzd)) {
 		devres_free(ptr);
 		return tzd;
@@ -497,7 +504,6 @@ static int probe(struct platform_device *pdev)
 		if (!zone)
 			return PTR_ERR(zone);
 
-
 		/* The same fan but different range */
 		for (trip = 0; trip < TRIP_NUM; trip++) {
 			struct thermal_cooling_device *cdev;
@@ -505,7 +511,7 @@ static int probe(struct platform_device *pdev)
 			int lo[] = { pwm_lo, pwm_lo, 0 };
 
 			cdev = devm_thermal_cooling_device_register(dev, "Fan",
-						(void *)((fan << 8) | trip),
+								    (void *)((fan << 8) | trip),
 						&cooling_ops);
 
 			if (IS_ERR(cdev)) {
@@ -515,7 +521,7 @@ static int probe(struct platform_device *pdev)
 			}
 
 			ret = thermal_zone_bind_cooling_device(zone,
-							trip, cdev,
+							       trip, cdev,
 							hi[trip], lo[trip],
 							THERMAL_WEIGHT_DEFAULT);
 			if (ret) {
@@ -523,8 +529,8 @@ static int probe(struct platform_device *pdev)
 				return ret;
 			}
 
-			if (trip == TRIP_STOP) 
-				continue ;
+			if (trip == TRIP_STOP)
+				continue;
 
 			/* Create sysfs for changing max state */
 			ret = device_create_file(&cdev->device,
@@ -552,7 +558,7 @@ static int probe(struct platform_device *pdev)
 
 		dev_dbg(dev, "%s smart fan up\n", fan_name[name]);
 	}
-	
+
 	return ret;
 }
 

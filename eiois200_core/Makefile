@@ -1,4 +1,5 @@
 #!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-2.0-only
 
 MODULE_NAME := eiois200_core
 
@@ -13,7 +14,7 @@ obj-m := $(MODULE_NAME).o
 
 src ?= $(PWD)
 obj ?= .
-ccflags-y := -I$(src)/../include 
+ccflags-y := -I$(src)/../include
 
 module: $(MODULE_NAME).ko
 

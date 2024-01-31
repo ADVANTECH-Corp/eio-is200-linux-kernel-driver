@@ -58,6 +58,10 @@ static int bl_power_invert = USE_DEFAULT;
 module_param(bl_power_invert, int, 0444);
 MODULE_PARM_DESC(bl_power_invert, "Setup backlight enable pin polarity.\n");
 
+static int timeout = 0;
+module_param(timeout, int, 0444);
+MODULE_PARM_DESC(timeout, "Set PMC command timeout value.\n");
+
 static int pmc_cmd(struct device *dev, u8 cmd, u8 ctrl, u8 id, void *data)
 {
 	struct pmc_op op = {
@@ -66,6 +70,7 @@ static int pmc_cmd(struct device *dev, u8 cmd, u8 ctrl, u8 id, void *data)
 		.device_id = id,
 		.size	   = ctrl == BL_CTRL_FREQ ? 4 : 1,
 		.payload   = (u8 *)data,
+		.timeout   = timeout,
 	};
 
 	return eiois200_core_pmc_operation(dev, &op);
@@ -112,7 +117,7 @@ static const struct backlight_ops bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 };
 
-static int bl_init(struct device *dev, int id, 
+static int bl_init(struct device *dev, int id,
 		   struct backlight_properties *props)
 {
 	int ret = 0;
@@ -130,29 +135,29 @@ static int bl_init(struct device *dev, int id,
 	}
 
 	/* Read duty */
-	ret = PMC_READ(dev, BL_CTRL_DUTY, id, &props->brightness);	
+	ret = PMC_READ(dev, BL_CTRL_DUTY, id, &props->brightness);
 
 	/* Invert PWM */
 	dev_dbg(dev, "bri_invert=%d\n", bri_invert);
 	if (bri_invert > USE_DEFAULT)
 		ret = PMC_WRITE(dev, BL_CTRL_INVERT, id, &bri_invert);
-	
+
 	bri_invert = 0;
-	ret = PMC_READ(dev, BL_CTRL_INVERT, id, &bri_invert);	
+	ret = PMC_READ(dev, BL_CTRL_INVERT, id, &bri_invert);
 
 	/* Setup freq */
 	dev_dbg(dev, "bri_freq=%d\n", bri_freq);
-	if (bri_freq != USE_DEFAULT) 
+	if (bri_freq != USE_DEFAULT)
 		ret = PMC_WRITE(dev, BL_CTRL_FREQ, id, &bri_freq);
-	
+
 	PMC_READ(dev, BL_CTRL_FREQ, id, &bri_freq);
 
 	/* Invert enable pin*/
 	dev_dbg(dev, "bl_power_invert=%d\n", bl_power_invert);
 	if (bl_power_invert >= USE_DEFAULT)
 		ret = PMC_WRITE(dev, BL_CTRL_ENABLE_INVERT,
-			       id, &bl_power_invert);
-			       
+				id, &bl_power_invert);
+
 	bl_power_invert = 0;
 	ret = PMC_READ(dev, BL_CTRL_ENABLE_INVERT, id, &bl_power_invert);
 
@@ -161,7 +166,7 @@ static int bl_init(struct device *dev, int id,
 	if (ret)
 		return ret;
 
-	props->power = enabled? FB_BLANK_UNBLANK : FB_BLANK_NORMAL ;
+	props->power = enabled ? FB_BLANK_UNBLANK : FB_BLANK_NORMAL;
 
 	return ret;
 }
@@ -194,12 +199,12 @@ static int bl_probe(struct platform_device *pdev)
 		if (ret)
 			continue;
 
-		sprintf (name, "%s%ld", pdev->name, id);
+		sprintf(name, "%s%ld", pdev->name, id);
 		bl = devm_backlight_device_register(dev, name, dev, (void *)id,
 						    &bl_ops, &props);
 		if (IS_ERR(bl))
 			return PTR_ERR(bl);
-		
+
 		dev_dbg(dev, "%s registered\n", name);
 	}
 

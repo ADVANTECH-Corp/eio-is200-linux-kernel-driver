@@ -1,4 +1,5 @@
 #!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-2.0-only
 
 MODULE_NAME := eiois200_thermal
 
