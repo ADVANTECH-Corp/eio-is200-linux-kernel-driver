@@ -12,10 +12,7 @@
 ## OS supported
 > These drivers have been verified on:
  ```
-  Linux kernel 5.15.0.X
-  Linux kernel 5.19.0.X
-  Linux kernel 6.2.0.X
-  Linux kernel 6.5.0.X
+    Ubuntu 20.04 and 22.04 with Linux kernel versions 5.15, 5.19, and 6.2.
  ```
 ## Get the source first.
 > Get it from Github repository with the following command in the Linux terminal.
@@ -46,9 +43,7 @@ root# sudo ./example.sh
 ```
 
 ## DKMS packaging for debian and derivatives
-> DKMS is commonly used on debian and derivatives, like ubuntu, to streamline building extra kernel modules.
-
-> If you need to package the source code into an installation package, please follow the instructions below, remember to change "0.0.2" to your target version:
+> DKMS is commonly used on debian and derivatives, like ubuntu, to streamline building extra kernel modules. If you need to package the source code into an installation package, please follow the instructions below. Please note that these instructions are based on version 0.0.2 of the source code. Before executing the commands, make sure to adjust the version number '0.0.2' according to the version you are currently using:
 ```bash
   sudo cp eiois200-0.0.2/ /usr/src/ -r
   sudo dkms add eiois200/0.0.2
@@ -75,4 +70,28 @@ root# sudo ./example.sh
 ```bash
   sudo dpkg -P eiois200-dkms
 ```
+> To confirm that the package works properly, please use the following command:
+```bash
+  sudo bash /usr/src/eiois200-0.0.2/example
+```
+> The shell script will start. You may use this sample to test each device driver:
+```
+**********************************************
+**            EIOIS200 Example              **
+**********************************************
 
+Main (EIOIS200 driver demo script)
+
+0) Terminate this program
+1) Watch Dog
+2) HWM
+3) SmartFan
+4) Thermal Protection
+5) GPIO
+6) Backlight
+7) SMBus
+8) I2C
+9) Information
+
+Enter your choice: 
+```
