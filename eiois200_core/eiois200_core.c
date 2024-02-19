@@ -170,21 +170,31 @@ static struct {
 	} type;
 
 } attrs[] = {
-	{ "board_name",		0x53, 0x10, 0, 16 },
-	{ "board_serial",	0x53, 0x1F, 0, 16 },
-	{ "board_manufacturer", 0x53, 0x11, 0, 16 },
-	{ "board_id",		0x53, 0x1E, 0,  4 },
-	{ "firmware_version",	0x53, 0x22, 0, 16 },
-	{ "firmware_build",	0x53, 0x23, 0, 26 },
-	{ "firmware_date",	0x53, 0x24, 0, 16 },
-	{ "chip_id",		0x53, 0x12, 0, 12 },
-	{ "chip_detect",	0x53, 0x15, 0, 12 },
-	{ "platform_type",	0x53, 0x13, 0, 16 },
-	{ "platform_revision",	0x53, 0x14, 0,  4 },
-	{ "eapi_version",	0x53, 0x30, 0,  4 },
-	{ "eapi_id",		0x53, 0x31, 0,  4 },
-	{ "boot_count",		0x55, 0x10, 0,  4, NUMBER },
-	{ "powerup_hour",	0x55, 0x11, 0,  4, NUMBER },
+	{ "board_name",	0x53, 0x10,	0, 16 },
+	{ "board_serial",	0x53, 0x1F,	0, 16 },
+	{ "board_manufacturer", 0x53, 0x11,	0, 16 },
+	{ "board_id",		0x53, 0x1E,	0,  4 },
+	{ "firmware_version",	0x53, 0x21, 	0,  4 },
+	{ "firmware_name",	0x53, 0x22,	0, 16 },
+	{ "firmware_build",	0x53, 0x23,	0, 26 },
+	{ "firmware_date",	0x53, 0x24,	0, 16 },
+	{ "chip_id",		0x53, 0x12,	0, 12 },
+	{ "chip_detect",	0x53, 0x15,	0, 12 },
+	{ "platform_type",	0x53, 0x13,	0, 16 },
+#if 0
+	{ "platform_revision",	0x53, 0x14,	0,  4 },
+#else
+	{ "platform_revision", 0x53, 0x04, 0x44,  4 },
+#endif
+
+#if 0
+	{ "eapi_version",	0x53, 0x30,	0,  4 },
+#else
+	{ "eapi_version",	0x53, 0x04, 0x64,  4 },
+#endif
+	{ "eapi_id",		0x53, 0x31,	0,  4 },
+	{ "boot_count",	0x55, 0x10,	0,  4, NUMBER },
+	{ "powerup_hour",	0x55, 0x11,	0,  4, NUMBER },
 	{ "pnp_id",		0x53, 0x04, 0x68,  4, PNP_ID },
 };
 
@@ -221,7 +231,7 @@ static ssize_t info_show(struct device *dev,
 		val = *(u32 *)str;
 
 		if (attrs[i].type == HEX)
-			return sprintf(buf, "0x%X\n", val);
+			return sprintf(buf, "0x%08X\n", val);
 
 		if (attrs[i].type == NUMBER)
 			return sprintf(buf, "%d\n", val);
@@ -247,6 +257,7 @@ static DEVICE_ATTR_RO(_name)
 PMC_DEVICE_ATTR_RO(board_name);
 PMC_DEVICE_ATTR_RO(board_serial);
 PMC_DEVICE_ATTR_RO(board_manufacturer);
+PMC_DEVICE_ATTR_RO(firmware_name);
 PMC_DEVICE_ATTR_RO(firmware_version);
 PMC_DEVICE_ATTR_RO(firmware_build);
 PMC_DEVICE_ATTR_RO(firmware_date);
@@ -265,6 +276,7 @@ static struct attribute *pmc_attrs[] = {
 	&dev_attr_board_name.attr,
 	&dev_attr_board_serial.attr,
 	&dev_attr_board_manufacturer.attr,
+	&dev_attr_firmware_name.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_firmware_build.attr,
 	&dev_attr_firmware_date.attr,

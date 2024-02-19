@@ -1039,12 +1039,14 @@ function InfoSub1Menu
 {
 	local DIR=/sys/bus/isa/devices/eiois200_core.0
 	local up_time=$(uptime | cut -d "p" -f 2 | cut -d "," -f 1)
+	local eapi_ver=`cat $DIR/eapi_version 2> /dev/null`
+	local fw_ver=`cat $DIR/firmware_version 2> /dev/null`
 
 	show_title
 
 	echo -e "Information"
 	echo -e
-	echo -e "Up time			:$up_time"
+	echo -e "Up time			:" $up_time
 	echo -e "Board ID		:" `cat $DIR/board_id 2> /dev/null`
 	echo -e "Board Manufacturer	:" `cat $DIR/board_manufacturer 2> /dev/null`
 	echo -e "Board Name		:" `cat $DIR/board_name 2> /dev/null`
@@ -1053,10 +1055,11 @@ function InfoSub1Menu
 	echo -e "Chip Detect		:" `cat $DIR/chip_detect 2> /dev/null`
 	echo -e "Chip ID			:" `cat $DIR/chip_id 2> /dev/null`
 	echo -e "EAPI ID			:" `cat $DIR/eapi_id 2> /dev/null`
-	echo -e "EAPI Rersion		:" `cat $DIR/eapi_version 2> /dev/null`
+	printf  "EAPI Version		: %u.%u\n" ${eapi_ver:2:2} ${eapi_ver:4:2}
 	echo -e "Firmware Build		:" `cat $DIR/firmware_build 2> /dev/null`
 	echo -e "Firmware Date		:" `cat $DIR/firmware_date 2> /dev/null`
-	echo -e "Firmware Version	:" `cat $DIR/firmware_version 2> /dev/null`
+	echo -e "Firmware Name		:" `cat $DIR/firmware_name 2> /dev/null`
+	printf  "Firmware Version	: %u.%u.%u\n" 0x${fw_ver:8:2} 0x${fw_ver:6:2} 0x${fw_ver:2:4}
 	echo -e "Platform Revision	:" `cat $DIR/platform_revision 2> /dev/null`
 	echo -e "Platform Type		:" `cat $DIR/platform_type 2> /dev/null`
 	echo -e "Pnp ID			:" `cat $DIR/pnp_id 2> /dev/null`
