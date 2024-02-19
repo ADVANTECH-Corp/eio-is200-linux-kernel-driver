@@ -167,9 +167,9 @@ static ssize_t set_max_state_store(struct device *dev,
 
 #ifdef thermal_cooling_device_update
 	thermal_cooling_device_update(cdev)
-#else
-	cdev->max_state = max;
 #endif
+//	cdev->max_state = max;
+	
 	return count;
 }
 
