@@ -1051,7 +1051,7 @@ function InfoSub1Menu
 	echo -e "Board Manufacturer	:" `cat $DIR/board_manufacturer 2> /dev/null`
 	echo -e "Board Name		:" `cat $DIR/board_name 2> /dev/null`
 	echo -e "Board Serial		:" `cat $DIR/board_serial 2> /dev/null`
-	echo -e "Boot Count		:" $((16#`cat $DIR/boot_count 2> /dev/null`))
+	echo -e "Boot Count		:" `cat $DIR/boot_count 2> /dev/null`
 	echo -e "Chip Detect		:" `cat $DIR/chip_detect 2> /dev/null`
 	echo -e "Chip ID			:" `cat $DIR/chip_id 2> /dev/null`
 	echo -e "EAPI ID			:" `cat $DIR/eapi_id 2> /dev/null`
