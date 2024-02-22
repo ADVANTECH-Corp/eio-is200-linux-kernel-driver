@@ -153,7 +153,7 @@ function HwmSub1Menu
 			if [ -f "$file" ]; then
 				label=`cat ${file%input}label`
 				val=`cat $file`
-				printf "\t%s\t: %d.%02d\n" $label $((val/1000)) $(((val/2) % 100))
+				printf "\t%s\t: %d.%02d  \n" $label $((val/1000)) $(((val/10) % 100))
 			fi
 		done
 
@@ -162,19 +162,19 @@ function HwmSub1Menu
 			if [ -f "$file" ]; then
 				label=`cat ${file%input}label`
 				val=`cat $file`
-				printf "\t%s\t: %d.%d\n" $label $((val/1000)) $(((val%1000)/100))
+				printf "\t%s\t: %d.%d  \n" $label $((val/1000)) $(((val%1000)/100))
 			fi
 		done
 
 		echo -e "\nFan speed(rpm): "
 		for file in $hwm_dev/fan*input; do
 			if [ -f "$file" ]; then
-				echo -e "\t`cat ${file%input}label`\t: `cat $file`"
+				echo -e "\t`cat ${file%input}label`\t: `cat $file`  "
 			fi
 		done
 
 		echo -e
-		read -t0.001 -n1 -p "Press any key to leave..."
+		read -t0.016 -n1 -p "Press any key to leave..."
 		if [ $? -eq 0 ]; then
 			return 0
 		fi
