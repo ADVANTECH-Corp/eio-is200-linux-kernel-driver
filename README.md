@@ -5,6 +5,7 @@
   GPIO: gpio-eiois200
   Hardware monitor: eiois200-hwmon
   Fan: eiois200_fan
+  Thermal: eiois200_thermal
   I2C: i2c-eiois200
   Video backlight: eiois200_bl
   Watchdog: eiois200_wdt
@@ -95,3 +96,9 @@ Main (EIOIS200 driver demo script)
 
 Enter your choice: 
 ```
+## Reference
+> #### GPIO sysfs: https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
+> #### hwmon sysfs: https://www.kernel.org/doc/Documentation/hwmon/sysfs-interface
+> #### Thermal & Fan sysfs: https://www.kernel.org/doc/Documentation/thermal/sysfs-api.txt
+> #### I2C sysfs: https://www.kernel.org/doc/Documentation/i2c/i2c-sysfs.rst
+> #### Watchdog api: https://www.kernel.org/doc/Documentation/watchdog/watchdog-api.txt
