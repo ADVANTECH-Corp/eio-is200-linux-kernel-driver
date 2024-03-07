@@ -269,13 +269,13 @@ function SmartFanSub1Menu
 			read -p"Max PWM (0 ~ 100 %): " val
 			echo ${val} > $tz_dev/cdev0/set_max_state
    			rmmod eiois200_fan
-   			modprob eiois200_fan
+   			modprobe eiois200_fan
 			;;
 		"8")
 			read -p"Min PWM (0 ~ 100 %): " val
 			echo ${val} > $tz_dev/cdev1/set_max_state
    			rmmod eiois200_fan
-   			modprob eiois200_fan
+   			modprobe eiois200_fan
 			;;
 		esac
 	done
