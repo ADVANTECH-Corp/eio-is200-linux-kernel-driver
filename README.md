@@ -73,7 +73,7 @@ root# sudo ./example.sh
 ```
 > To confirm that the package works properly, please use the following command:
 ```bash
-  sudo bash /usr/src/eiois200-0.0.2/example
+  sudo bash /usr/src/eiois200-0.0.2/example.sh
 ```
 > The shell script will start. You may use this sample to test each device driver:
 ```
