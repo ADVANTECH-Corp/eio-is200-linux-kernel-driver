@@ -532,7 +532,7 @@ function SMBusSub2Probe
 {
 	echo -e
 	echo "Address of existed devices (Hex):" \
-	     `i2cdetect -y -a $1 | sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
+	     `i2cdetect -y $1 | sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
 	echo -e
 	read -n1 -t2 -p"Press ENTER to continue..."
 }
