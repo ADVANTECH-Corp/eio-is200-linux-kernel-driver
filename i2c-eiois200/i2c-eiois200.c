@@ -15,19 +15,15 @@
 #include <linux/mfd/eiois200.h>
 #include <linux/version.h>
 
-#define SUPPORTED_SMB	(I2C_FUNC_SMBUS_QUICK | \
-			 I2C_FUNC_SMBUS_BYTE | \
-			 I2C_FUNC_SMBUS_BYTE_DATA | \
-			 I2C_FUNC_SMBUS_WORD_DATA | \
-			 I2C_FUNC_SMBUS_BLOCK_DATA)
 
-#define SUPPORTED_I2C	(I2C_FUNC_I2C | \
-			 I2C_FUNC_10BIT_ADDR | \
-			 I2C_FUNC_SMBUS_QUICK | \
-			 I2C_FUNC_SMBUS_BYTE | \
-			 I2C_FUNC_SMBUS_BYTE_DATA | \
-			 I2C_FUNC_SMBUS_WORD_DATA | \
-			 I2C_FUNC_SMBUS_I2C_BLOCK)
+#define SUPPORTED_COMMON (I2C_FUNC_I2C | \
+			  I2C_FUNC_SMBUS_QUICK | \
+			  I2C_FUNC_SMBUS_BYTE | \
+			  I2C_FUNC_SMBUS_BYTE_DATA | \
+			  I2C_FUNC_SMBUS_WORD_DATA | \
+			  I2C_FUNC_SMBUS_I2C_BLOCK)
+#define SUPPORTED_SMB	(SUPPORTED_COMMON | I2C_FUNC_SMBUS_BLOCK_DATA)
+#define SUPPORTED_I2C	(SUPPORTED_COMMON | I2C_FUNC_10BIT_ADDR)
 
 #define MAX_I2C_SMB		4
 
@@ -384,6 +380,19 @@ static int bus_stop(struct dev_i2c *i2c)
 	return 0;
 }
 
+static void switch_i2c_mode(struct dev_i2c *i2c, bool on)
+{
+	u32 tmp;
+	
+	if (IS_I2C(i2c))
+		return;
+
+	I2C_READ(i2c, SMB_REG_HC2, &tmp);
+	I2C_WRITE(i2c, SMB_REG_HC2, 
+		  on ? tmp |  SMB_HC2_I2C_EN | SMB_HC2_SRESET
+		     : tmp & ~SMB_HC2_I2C_EN);
+}
+
 static void i2c_clear(struct dev_i2c *i2c)
 {
 	if (IS_I2C(i2c)) {
@@ -411,7 +420,7 @@ static int wait_write_done(struct dev_i2c *i2c, bool no_ack)
 				reg_or(i2c, SMB_REG_HS, 0);
 				reg_or(i2c, SMB_REG_HS2, 0);
 			}
-			dev_err(i2c->dev, "wait write complete timeout %X\n", val);
+			dev_err(i2c->dev, "wait write complete timeout %X %X\n", val, target);
 			return -ETIME;
 		}
 
@@ -543,24 +552,22 @@ static int get_freq(struct dev_i2c *i2c, int *freq)
 static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		      int size, union i2c_smbus_data *data)
 {
-	int i, tmp, ret;
+	int i, tmp, ret = 0;
 	int st1, st2;
 	struct device *dev = i2c->dev;
+	int len = 0;
 
 	rt_mutex_lock(&i2c->lock);
 
-	ret = wait_bus_free(i2c);
+	ret = wait_ready(i2c);
 	if (ret)
 		goto exit;
-
-	ret = wait_busy(i2c);
-	if (ret)
-		goto exit;
-
+	
+	switch_i2c_mode(i2c, false);
 	addr = I2C_ENC_7BIT_ADDR(addr) | is_read;
 	I2C_WRITE(i2c, SMB_REG_HADDR, addr);
 	I2C_WRITE(i2c, SMB_REG_HCMD, cmd);
-	dev_dbg(dev, "SMB[%d], addr:0x%02X, cmd:0x%02X\n", i2c->ch, addr, cmd);
+	dev_dbg(dev, "SMB[%d], addr:0x%02X, cmd:0x%02X size=%d\n", i2c->ch, addr, cmd, size);
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -618,8 +625,8 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		reg_and(i2c, SMB_REG_HC2, (int)~SMB_HC2_E32B);
 		reg_or(i2c, SMB_REG_HC2, (int)SMB_HC2_E32B);
 
-		for (i = 1; i <= data->block[0]; i++)
-			I2C_WRITE(i2c, SMB_REG_HBLOCK, data->block[i]);
+		for (i = 1; i <= data->block[0] && ret == 0; i++)
+			ret = write_data(i2c, data->block[i], false);
 		break;
 	default:
 		ret = -EINVAL;
@@ -683,18 +690,16 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		I2C_READ(i2c, SMB_REG_HD1, (u32 *)data->block + 1);
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-		if (is_read) {
-			int len;
+		if (!is_read) 
+			break;
 
-			dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA\n");
+		dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA\n");			
+		I2C_READ(i2c, SMB_REG_HD0, &len);
+		len = min(len, I2C_SMBUS_BLOCK_MAX);
+		data->block[0] = len;
 
-			I2C_READ(i2c, SMB_REG_HD0, &len);
-			len = min(len, I2C_SMBUS_BLOCK_MAX);
-			data->block[0] = len;
-
-			for (i = 1; i < len; i++)
-				I2C_READ(i2c, SMB_REG_HBLOCK, (void *)data->block + i);
-		}
+		for (i = 1; i < len; i++)
+			I2C_READ(i2c, SMB_REG_HBLOCK, (void *)data->block + i);
 		break;
 	default:
 		ret = -EINVAL;
@@ -722,6 +727,8 @@ static int i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	ret = wait_ready(i2c);
 	if (ret)
 		goto exit;
+	
+	switch_i2c_mode(i2c, true);
 
 	dev_dbg(i2c->dev, "Transmit %d I2C messages\n", num);
 	for (msg = 0; msg < num; msg++)	{
@@ -815,7 +822,7 @@ static int smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		{ .addr = addr, .flags = flags | I2C_M_RD, .buf = buf + 1},
 	};
 
-	if (IS_I2C(i2c) == 0)
+	if (!IS_I2C(i2c) && size != I2C_SMBUS_I2C_BLOCK_DATA)
 		return smb_access(i2c, addr, is_read, cmd, size, data);
 
 	if (data) {
