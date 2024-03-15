@@ -625,8 +625,8 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		reg_and(i2c, SMB_REG_HC2, (int)~SMB_HC2_E32B);
 		reg_or(i2c, SMB_REG_HC2, (int)SMB_HC2_E32B);
 
-		for (i = 1; i <= data->block[0] && ret == 0; i++)
-			ret = write_data(i2c, data->block[i], false);
+		for (i = 1; i <= data->block[0]; i++)
+			I2C_WRITE(i2c, SMB_REG_HBLOCK, data->block[i]);
 		break;
 	default:
 		ret = -EINVAL;
