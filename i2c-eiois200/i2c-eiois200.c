@@ -600,6 +600,10 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA\n");
+
+		if (is_read)
+			break;
+					
 		// BLOCK need to set cmd type first.
 		I2C_READ(i2c, SMB_REG_HC, &tmp);
 		tmp &= ~(0x07 << SMB_HC_CMD_SHIFT);
@@ -611,11 +615,10 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		reg_and(i2c, SMB_REG_HC2, (int)~SMB_HC2_E32B);
 		reg_or(i2c, SMB_REG_HC2, (int)SMB_HC2_E32B);
 
-		if (!is_read) {
-			I2C_WRITE(i2c, SMB_REG_HD0, data->block[0]);
-			for (i = 1; i <= data->block[0]; i++)
-				I2C_WRITE(i2c, SMB_REG_HBLOCK, data->block[i]);
-		}
+		// Write data
+		I2C_WRITE(i2c, SMB_REG_HD0, data->block[0]);
+		for (i = 1; i <= data->block[0]; i++)
+			I2C_WRITE(i2c, SMB_REG_HBLOCK, data->block[i]);
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		reg_and(i2c, SMB_REG_HC, 0x07 << SMB_HC_CMD_SHIFT);
@@ -698,7 +701,7 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		len = min(len, I2C_SMBUS_BLOCK_MAX);
 		data->block[0] = len;
 
-		for (i = 1; i < len; i++)
+		for (i = 1; i <= len; i++)
 			I2C_READ(i2c, SMB_REG_HBLOCK, (void *)data->block + i);
 		break;
 	default:
@@ -859,7 +862,8 @@ static int smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		msgs[1].buf = data->block;
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-		dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_DATA on I2C len=%d\n",
+	case I2C_SMBUS_I2C_BLOCK_BROKEN:
+		dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_(DATA/BROKEN) on I2C len=%d\n",
 			data->block[0]);
 		msgs[0].len = is_read ? 1 : data->block[0] + 1;
 		msgs[1].len = data->block[0];
@@ -881,9 +885,6 @@ static int smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA on I2C not supported\n");
-		return -EINVAL;
-	case I2C_SMBUS_I2C_BLOCK_BROKEN:
-		dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_BROKEN on I2C not supported\n");
 		return -EINVAL;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		dev_dbg(dev, "I2C_SMBUS_BLOCK_PROC_CALL on I2C not supported\n");

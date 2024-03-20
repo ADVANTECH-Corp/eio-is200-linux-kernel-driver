@@ -597,7 +597,7 @@ function SMBusSub2Read
 		"4")
 			# Different expression by protocal
 			case $len in
-			 0) expr="i2cdump -y -f -a ${host} $addr s";;
+			 0) expr="i2cget -y -f -a ${host} $addr $cmd s";;
 			 1) expr="i2cget  -y -f -a ${host} $addr ";;
 			 2) expr="i2cget  -y -f -a ${host} $addr $cmd b";;
 			 3) expr="i2cget  -y -f -a ${host} $addr $cmd w";;
@@ -677,8 +677,9 @@ function SMBusSub2Write
 			esac
 
 			# Execute expression
-			echo -e "\n${expr}"
+			echo -e "${expr}"
 			eval "${expr}"
+			echo ""
 			read -n1 -t2 -p"Write transfer `ternary "[[ $? -eq 0 ]]" ? "Success\n" : "Fail\n"` ... "
 			;;
 		*)
