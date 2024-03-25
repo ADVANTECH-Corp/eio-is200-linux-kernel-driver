@@ -970,7 +970,7 @@ static int probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
 		dev_err(dev, "Query parent regmap fail\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
 
 	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
