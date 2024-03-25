@@ -165,9 +165,6 @@ struct dev_i2c {
 	struct rt_mutex lock;
 };
 
-/* Pointer to the eiois200_core device structure */
-static struct eiois200_dev *eiois200_dev;
-
 static struct regmap *regmap;
 
 static int timeout = I2C_TIMEOUT;
@@ -903,6 +900,7 @@ static int load_i2c(struct device *dev, enum i2c_ch ch, struct dev_i2c *i2c)
 	int ldn = LDN_I2C0 + ch;
 	int *freqs[] = { &i2c0_freq, &i2c1_freq, &smb0_freq, &smb1_freq };
 	int *freq = freqs[ch];
+	struct eiois200_dev *eiois200_dev = dev_get_drvdata(dev->parent);
 
 	mutex_lock(&eiois200_dev->mutex);
 
@@ -967,12 +965,6 @@ static int probe(struct platform_device *pdev)
 	if ((timeout < I2C_TIMEOUT / 100) || (timeout > I2C_TIMEOUT * 100)) {
 		dev_err(dev, "Error timeout value %d\n", timeout);
 		return -EINVAL;
-	}
-
-	eiois200_dev = dev_get_drvdata(dev->parent);
-	if (!eiois200_dev) {
-		dev_err(dev, "Error contact eiois200_core %d\n", ret);
-		return -ENXIO;
 	}
 
 	regmap = dev_get_regmap(dev->parent, NULL);
