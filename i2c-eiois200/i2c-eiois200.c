@@ -744,18 +744,18 @@ static int i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			let_stop(i2c);
 
 		if (msgs[msg].flags & I2C_M_TEN) {
-			dev_dbg(i2c->dev, "10bits addr: %X\n", addr);
 			addr = I2C_ENC_10BIT_ADDR(msgs[msg].addr);
 			addr |= is_read;
+			dev_dbg(i2c->dev, "10bits addr: %X\n", addr);
 
 			ret = write_addr(i2c, addr >> 8, no_ack);
 			if (!ret)
 				ret = write_data(i2c, addr & 0x7F,
 						 no_ack);
 		} else {
-			dev_dbg(i2c->dev, "7bits addr: %X\n", addr);
 			addr = I2C_ENC_7BIT_ADDR(msgs[msg].addr);
 			addr |= is_read;
+			dev_dbg(i2c->dev, "7bits addr: %X\n", addr);
 
 			ret = write_addr(i2c, addr, no_ack);
 		}
