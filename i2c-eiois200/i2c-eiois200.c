@@ -474,13 +474,14 @@ static int write_data(struct dev_i2c *i2c, int data, bool no_ack)
 	return wait_write_done(i2c, no_ack);
 }
 
-static int read_data(struct dev_i2c *i2c, void *data)
+static int read_data(struct dev_i2c *i2c, u8 *data)
 {
 	int val, cnt = 0;
 	ktime_t time_end = ktime_add_us(ktime_get(), timeout);
 	int stat = REG_SW(i2c, I2C_REG_STAT, SMB_REG_HS);
 	int target = REG_SW(i2c, I2C_STAT_RXREADY, SMB_HS_RX_READY);
 	int reg = REG_SW(i2c, I2C_REG_DATA, SMB_REG_HD0);
+	unsigned int tmp;
 
 	do {
 		my_delay(cnt++);
@@ -500,7 +501,8 @@ static int read_data(struct dev_i2c *i2c, void *data)
 
 	/* Must read data after clear status	*/
 	/* or error will occur when high speed. */
-	I2C_READ(i2c, reg, data);
+	I2C_READ(i2c, reg, &tmp);
+	data[0] = tmp;
 
 	return 0;
 }
