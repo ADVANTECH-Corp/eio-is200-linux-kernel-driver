@@ -1016,6 +1016,6 @@ static struct platform_driver i2c_driver = {
 
 module_platform_driver_probe(i2c_driver, probe);
 
-MODULE_AUTHOR("Adavantech");
+MODULE_AUTHOR("Advantech");
 MODULE_DESCRIPTION("I2C driver for Advantech EIO-IS200 embedded controller");
 MODULE_LICENSE("GPL v2");
