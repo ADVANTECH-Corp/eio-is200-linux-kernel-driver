@@ -239,7 +239,7 @@ static int gpio_probe(struct platform_device *pdev)
 	eiois200_dev = dev_get_drvdata(dev->parent);
 	if (!eiois200_dev) {
 		dev_err(dev, "Error contact eiois200_core\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
 
 	gpio_dev = devm_kzalloc(dev, sizeof(struct _gpio_dev), GFP_KERNEL);
