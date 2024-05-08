@@ -86,6 +86,9 @@
 /* Beep mechanism no stable. Not supported, yet. */
 #define TRIP_BEEP		 3
 
+#define THERMAL_POLLING_DELAY		2000 /* millisecond */
+#define THERMAL_PASSIVE_DELAY		1000
+
 #define DECI_KELVIN_TO_MILLI_CELSIUS(t) (((t) - 2731) * 100)
 #define MILLI_CELSIUS_TO_DECI_KELVIN(t) ((t / 100) + 2731)
 
@@ -488,7 +491,9 @@ static int probe(struct platform_device *pdev)
 		zone = devm_thermal_zone_device_register(
 				dev, "eiois200_thermal", TRIP_NUM,
 				(1 << TRIP_NUM) - 1, (void *)ch,
-				&zone_ops, &zone_params, 0, 0);
+				&zone_ops, &zone_params,
+				THERMAL_PASSIVE_DELAY,
+				THERMAL_POLLING_DELAY);
 		if (!zone)
 			return PTR_ERR(zone);
 
