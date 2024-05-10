@@ -25,6 +25,7 @@
 
 #define TIMEOUT_MAX     (10 * USEC_PER_SEC)
 #define TIMEOUT_MIN	200
+#define SLEEP_MAX	200
 #define DEFAULT_TIMEOUT 5000
 
 /**
@@ -444,11 +445,8 @@ int eiois200_core_pmc_wait(struct device *dev,
 			   enum eiois200_pmc_wait wait,
 			   uint max_duration)
 {
-	int ret;
 	uint val;
-	u32 cnt = 0;
 	int new_timeout = max_duration ? max_duration : timeout;
-	ktime_t time_end = ktime_add_us(ktime_get(), new_timeout);
 
 	if (new_timeout < TIMEOUT_MIN || new_timeout > TIMEOUT_MAX) {
 		dev_err(dev,
@@ -457,29 +455,19 @@ int eiois200_core_pmc_wait(struct device *dev,
 		return -ETIME;
 	}
 
-	do {
-		ret = regmap_read(regmap_is200,
-				  eiois200_dev->pmc[id].status,
-				  &val);
-		if (ret)
-			return ret;
-
-		if (wait == PMC_WAIT_INPUT) {
-			if ((val & EIOIS200_PMC_STATUS_IBF) == 0)
-				return 0;
-		} else {
-			if ((val & EIOIS200_PMC_STATUS_OBF) != 0)
-				return 0;
-		}
-
-		/* Incremental delay */
-		cnt += 10;
-
-		usleep_range(cnt, 2 * cnt);
-
-	} while (ktime_before(ktime_get(), time_end));
-
-	return -ETIME;
+	if (wait == PMC_WAIT_INPUT)
+		return regmap_read_poll_timeout(regmap_is200,
+						eiois200_dev->pmc[id].status,
+						val,
+						(val & EIOIS200_PMC_STATUS_IBF) == 0,
+						SLEEP_MAX,
+						new_timeout);
+	return regmap_read_poll_timeout(regmap_is200,
+					eiois200_dev->pmc[id].status,
+					val,
+					(val & EIOIS200_PMC_STATUS_OBF) != 0,
+					SLEEP_MAX,
+					new_timeout);
 }
 EXPORT_SYMBOL_GPL(eiois200_core_pmc_wait);
 
