@@ -86,8 +86,11 @@
 /* Beep mechanism no stable. Not supported, yet. */
 #define TRIP_BEEP		 3
 
-#define DECI_KELVIN_TO_DECI_CELSIUS(t)	((t) - 2731)
-#define DECI_CELSIUS_TO_DECI_KELVIN(t)	((t) + 2731)
+#define THERMAL_POLLING_DELAY		2000 /* millisecond */
+#define THERMAL_PASSIVE_DELAY		1000
+
+#define DECI_KELVIN_TO_MILLI_CELSIUS(t) (((t) - 2731) * 100)
+#define MILLI_CELSIUS_TO_DECI_KELVIN(t) ((t / 100) + 2731)
 
 #define DEV_CH(val)		(((long)(val)) >> 8)
 #define DEV_TRIP(val)		(((long)(val)) & 0x0F)
@@ -256,7 +259,7 @@ static int get_temp(struct thermal_zone_device *zone, int *temp)
 
 	/* Query temp */
 	ret = THERM_READ(dev, CTRL_VALUE, id, &val);
-	*temp = DECI_KELVIN_TO_DECI_CELSIUS(val);
+	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(val);
 
 	return ret;
 }
@@ -281,7 +284,7 @@ static int get_trip_temp(struct thermal_zone_device *zone, int trip, int *temp)
 	};
 
 	ret = THERM_READ(&zone->device, ctrl[trip], id, &val);
-	*temp = DECI_KELVIN_TO_DECI_CELSIUS(val);
+	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(val);
 
 	return ret;
 }
@@ -301,7 +304,7 @@ static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 		return -EINVAL;
 
 	/* Set trigger temp */
-	val = DECI_CELSIUS_TO_DECI_KELVIN(temp);
+	val = MILLI_CELSIUS_TO_DECI_KELVIN(temp);
 	ret = THERM_WRITE(&zone->device, ctrl[trip], id, &val);
 
 	/* Set clear temp */
@@ -320,7 +323,7 @@ static int get_max_state(struct thermal_cooling_device *cdev,
 	int max = 0;
 
 	ret = THERM_READ(&cdev->device, CTRL_MAX, id, &max);
-	*state = DECI_KELVIN_TO_DECI_CELSIUS(max);
+	*state = DECI_KELVIN_TO_MILLI_CELSIUS(max);
 
 	return ret;
 }
@@ -333,7 +336,7 @@ static int get_cur_state(struct thermal_cooling_device *cdev,
 	int temp = 0;
 
 	ret = THERM_READ(&cdev->device, CTRL_VALUE, id, &temp);
-	*state = DECI_KELVIN_TO_DECI_CELSIUS(temp);
+	*state = DECI_KELVIN_TO_MILLI_CELSIUS(temp);
 
 	return ret;
 }
@@ -481,14 +484,16 @@ static int probe(struct platform_device *pdev)
 				dev_err_probe(dev, -EIO, "Read thermal_%ld error\n",
 					      ch);
 
-			temps[trip] = DECI_KELVIN_TO_DECI_CELSIUS(hi[trip]);
+			temps[trip] = DECI_KELVIN_TO_MILLI_CELSIUS(hi[trip]);
 		}
 
 		/* Create zone */
 		zone = devm_thermal_zone_device_register(
 				dev, "eiois200_thermal", TRIP_NUM,
 				(1 << TRIP_NUM) - 1, (void *)ch,
-				&zone_ops, &zone_params, 0, 0);
+				&zone_ops, &zone_params,
+				THERMAL_PASSIVE_DELAY,
+				THERMAL_POLLING_DELAY);
 		if (!zone)
 			return PTR_ERR(zone);
 

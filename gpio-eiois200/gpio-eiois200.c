@@ -128,8 +128,11 @@ static int dir_input(struct gpio_chip *chip, unsigned int offset)
 static int dir_output(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	u8 dir = 1;
+	u8 val = value;
 
-	return pmc_write(GPIO_PIN_DIR, offset, &dir);
+	pmc_write(GPIO_PIN_DIR, offset, &dir);
+
+	return pmc_write(GPIO_PIN_LEVEL, offset, &val);
 }
 
 static int gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -146,7 +149,9 @@ static int gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 static void gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
-	pmc_write(GPIO_PIN_LEVEL, offset, &value);
+	u8 val = value;
+
+	pmc_write(GPIO_PIN_LEVEL, offset, &val);
 }
 
 static int check_support(void)
@@ -239,7 +244,7 @@ static int gpio_probe(struct platform_device *pdev)
 	eiois200_dev = dev_get_drvdata(dev->parent);
 	if (!eiois200_dev) {
 		dev_err(dev, "Error contact eiois200_core\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
 
 	gpio_dev = devm_kzalloc(dev, sizeof(struct _gpio_dev), GFP_KERNEL);
