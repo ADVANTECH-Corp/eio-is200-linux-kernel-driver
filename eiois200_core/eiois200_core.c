@@ -408,8 +408,8 @@ static int pmc_read_status(struct device *dev, int id)
 {
 	int val;
 
-	if (regmap_read(regmap_is200, eiois200_dev->pmc[id].data, &val)) {
-		dev_err(dev, "Error PMC read %X\n", eiois200_dev->pmc[id].data);
+	if (regmap_read(regmap_is200, eiois200_dev->pmc[id].status, &val)) {
+		dev_err(dev, "Error PMC read %X\n", eiois200_dev->pmc[id].status);
 		return 0;
 	}
 
