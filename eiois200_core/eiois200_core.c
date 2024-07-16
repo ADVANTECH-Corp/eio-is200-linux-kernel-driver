@@ -372,7 +372,7 @@ static int pmc_write_cmd(struct device *dev,
 	ret = regmap_write(regmap_is200, eiois200_dev->pmc[id].cmd, value);
 	if (ret)
 		dev_err(dev, "Error PMC write %X:%X\n",
-			eiois200_dev->pmc[id].data, value);
+			eiois200_dev->pmc[id].cmd, value);
 
 	return ret;
 }
