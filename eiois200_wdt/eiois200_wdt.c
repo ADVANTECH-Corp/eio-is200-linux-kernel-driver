@@ -219,7 +219,7 @@ static int get_time(u8 ctrl, u32 *val)
 
 static int set_time(u8 ctl, u32 time)
 {
-	/* sec to sec */
+	/* sec to msec */
 	time *= 1000;
 
 	return PMC_WRITE(ctl, &time);
