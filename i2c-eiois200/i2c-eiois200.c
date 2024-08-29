@@ -165,8 +165,9 @@ struct dev_i2c {
 	struct rt_mutex lock;
 };
 
-/* Pointer to the eiois200_core device structure */
-static struct eiois200_dev *eiois200_dev;
+struct eiois200_i2c {
+	struct dev_i2c *dev_i2c[MAX_I2C_SMB];
+};
 
 static struct regmap *regmap;
 
@@ -473,13 +474,14 @@ static int write_data(struct dev_i2c *i2c, int data, bool no_ack)
 	return wait_write_done(i2c, no_ack);
 }
 
-static int read_data(struct dev_i2c *i2c, void *data)
+static int read_data(struct dev_i2c *i2c, u8 *data)
 {
 	int val, cnt = 0;
 	ktime_t time_end = ktime_add_us(ktime_get(), timeout);
 	int stat = REG_SW(i2c, I2C_REG_STAT, SMB_REG_HS);
 	int target = REG_SW(i2c, I2C_STAT_RXREADY, SMB_HS_RX_READY);
 	int reg = REG_SW(i2c, I2C_REG_DATA, SMB_REG_HD0);
+	unsigned int tmp;
 
 	do {
 		my_delay(cnt++);
@@ -499,7 +501,8 @@ static int read_data(struct dev_i2c *i2c, void *data)
 
 	/* Must read data after clear status	*/
 	/* or error will occur when high speed. */
-	I2C_READ(i2c, reg, data);
+	I2C_READ(i2c, reg, &tmp);
+	data[0] = tmp;
 
 	return 0;
 }
@@ -743,18 +746,18 @@ static int i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			let_stop(i2c);
 
 		if (msgs[msg].flags & I2C_M_TEN) {
-			dev_dbg(i2c->dev, "10bits addr: %X\n", addr);
 			addr = I2C_ENC_10BIT_ADDR(msgs[msg].addr);
 			addr |= is_read;
+			dev_dbg(i2c->dev, "10bits addr: %X\n", addr);
 
 			ret = write_addr(i2c, addr >> 8, no_ack);
 			if (!ret)
 				ret = write_data(i2c, addr & 0x7F,
 						 no_ack);
 		} else {
-			dev_dbg(i2c->dev, "7bits addr: %X\n", addr);
 			addr = I2C_ENC_7BIT_ADDR(msgs[msg].addr);
 			addr |= is_read;
+			dev_dbg(i2c->dev, "7bits addr: %X\n", addr);
 
 			ret = write_addr(i2c, addr, no_ack);
 		}
@@ -903,6 +906,7 @@ static int load_i2c(struct device *dev, enum i2c_ch ch, struct dev_i2c *i2c)
 	int ldn = LDN_I2C0 + ch;
 	int *freqs[] = { &i2c0_freq, &i2c1_freq, &smb0_freq, &smb1_freq };
 	int *freq = freqs[ch];
+	struct eiois200_dev *eiois200_dev = dev_get_drvdata(dev->parent);
 
 	mutex_lock(&eiois200_dev->mutex);
 
@@ -957,64 +961,101 @@ static const struct i2c_algorithm algo = {
 	.functionality	= functionality,
 };
 
-static int probe(struct platform_device *pdev)
+static int eiois200_i2c_probe(struct platform_device *pdev)
 {
 	static const char * const name[] = { "i2c0", "i2c1", "smb0", "smb1" };
 	int ret = 0;
 	enum i2c_ch ch;
 	struct device *dev = &pdev->dev;
+	struct eiois200_i2c *eio_i2c;
 
 	if ((timeout < I2C_TIMEOUT / 100) || (timeout > I2C_TIMEOUT * 100)) {
 		dev_err(dev, "Error timeout value %d\n", timeout);
 		return -EINVAL;
 	}
 
-	eiois200_dev = dev_get_drvdata(dev->parent);
-	if (!eiois200_dev) {
-		dev_err(dev, "Error contact eiois200_core %d\n", ret);
-		return -ENXIO;
-	}
-
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
 		dev_err(dev, "Query parent regmap fail\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
+
+	eio_i2c = devm_kzalloc(dev, sizeof(*eio_i2c), GFP_KERNEL);
+	if (!eio_i2c)
+		return -ENOMEM;
 
 	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
 		struct dev_i2c *i2c;
 
-		i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
-		if (!i2c)
-			return -ENOMEM;
+		i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
+		if (!i2c) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
 
-		if (load_i2c(dev, ch, i2c))
+		if (load_i2c(dev, ch, i2c)) {
+			kfree(i2c);
 			continue;
+		}
 
 		i2c->adap.owner = THIS_MODULE;
 		i2c->adap.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 		i2c->adap.algo = &algo;
+		i2c->adap.nr = ch;
 		i2c->adap.dev.parent = dev;
 		rt_mutex_init(&i2c->lock);
 
 		sprintf(i2c->adap.name, "eiois200-%s", name[ch]);
 		i2c_set_adapdata(&i2c->adap, i2c);
 
-		ret = devm_i2c_add_adapter(dev, &i2c->adap);
+		ret = i2c_add_numbered_adapter(&i2c->adap);
 		dev_dbg(dev, "Add I2C_SMB[%d] %s. ret=%d\n",
 			ch, ret ? "Error" : "Success", ret);
-		if (ret)
-			return ret;
+		if (ret) {
+			kfree(i2c);
+			goto cleanup;
+		}
+
+		eio_i2c->dev_i2c[ch] = i2c;
+	}
+
+	return 0;
+
+cleanup:
+	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
+		if (eio_i2c->dev_i2c[ch]) {
+			i2c_del_adapter(&eio_i2c->dev_i2c[ch]->adap);
+			kfree(eio_i2c->dev_i2c[ch]);
+			eio_i2c->dev_i2c[ch] = NULL;
+		}
+	}
+
+	return ret;
+}
+
+static int eiois200_i2c_remove(struct platform_device *pdev)
+{
+	struct eiois200_i2c *eio_i2c = platform_get_drvdata(pdev);
+	enum i2c_ch ch;
+
+	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
+		if (eio_i2c->dev_i2c[ch]) {
+			i2c_del_adapter(&eio_i2c->dev_i2c[ch]->adap);
+			kfree(eio_i2c->dev_i2c[ch]);
+			eio_i2c->dev_i2c[ch] = NULL;
+		}
 	}
 
 	return 0;
 }
 
-static struct platform_driver i2c_driver = {
+static struct platform_driver eiois200_i2c_driver = {
+	.probe = eiois200_i2c_probe,
+	.remove = eiois200_i2c_remove,
 	.driver.name = "i2c_eiois200",
 };
 
-module_platform_driver_probe(i2c_driver, probe);
+module_platform_driver(eiois200_i2c_driver);
 
 MODULE_AUTHOR("Advantech");
 MODULE_DESCRIPTION("I2C driver for Advantech EIO-IS200 embedded controller");
