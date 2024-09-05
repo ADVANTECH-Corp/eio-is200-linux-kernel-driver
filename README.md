@@ -10,6 +10,14 @@
   Video backlight: eiois200_bl
   Watchdog: eiois200_wdt
 ```
+## License
+
+See [LICENSE](LICENSE) for details.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
 ## OS supported
 > These drivers have been verified on:
  ```
