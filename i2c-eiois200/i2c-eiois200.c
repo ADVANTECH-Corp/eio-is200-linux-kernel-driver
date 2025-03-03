@@ -1001,7 +1001,7 @@ static int eiois200_i2c_probe(struct platform_device *pdev)
 		i2c->adap.owner = THIS_MODULE;
 		i2c->adap.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 		i2c->adap.algo = &algo;
-		i2c->adap.nr = ch;
+		i2c->adap.nr = -1;
 		i2c->adap.dev.parent = dev;
 		rt_mutex_init(&i2c->lock);
 
