@@ -23,6 +23,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
  ```
     Ubuntu 20.04 and 22.04 with Linux kernel versions 5.15, 5.19, and 6.2.
  ```
+## Device supported
+> These drivers have been verified on:
+ ```
+    EIO-IS200
+    EIO-201
+    EIO-211
+ ```
 ## Get the source first.
 > Get it from Github repository with the following command in the Linux terminal.
 
