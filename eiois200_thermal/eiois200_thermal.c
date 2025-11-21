@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/thermal.h>
 #include <linux/mfd/eiois200.h>
+#include <linux/version.h>
 
 #define CMD_THERM_WRITE		 0x10
 #define CMD_THERM_READ		 0x11
@@ -89,8 +90,8 @@
 #define THERMAL_POLLING_DELAY		2000 /* millisecond */
 #define THERMAL_PASSIVE_DELAY		1000
 
-#define DECI_KELVIN_TO_MILLI_CELSIUS(t) (((t) - 2731) * 100)
-#define MILLI_CELSIUS_TO_DECI_KELVIN(t) ((t / 100) + 2731)
+#define DECI_KELVIN_TO_CELSIUS(t) (((t) - 2731) / 10)
+#define DECI_CELSIUS_TO_DECI_KELVIN(t) (t + 2731)
 
 #define DEV_CH(val)		(((long)(val)) >> 8)
 #define DEV_TRIP(val)		(((long)(val)) & 0x0F)
@@ -259,7 +260,7 @@ static int get_temp(struct thermal_zone_device *zone, int *temp)
 
 	/* Query temp */
 	ret = THERM_READ(dev, CTRL_VALUE, id, &val);
-	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(val);
+	*temp = DECI_KELVIN_TO_CELSIUS(val);
 
 	return ret;
 }
@@ -284,10 +285,59 @@ static int get_trip_temp(struct thermal_zone_device *zone, int trip, int *temp)
 	};
 
 	ret = THERM_READ(&zone->device, ctrl[trip], id, &val);
-	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(val);
+	*temp = DECI_KELVIN_TO_CELSIUS(val);
 
 	return ret;
 }
+
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+static int set_trip_temp(struct thermal_zone_device *zone, const struct thermal_trip *trip, int temp)
+{
+	int val, ret;
+	long id = (long)zone->devdata;
+	static u8 ctrl[] = {
+		CTRL_SHUTDOWN_HI,
+		CTRL_POWEROFF_HI,
+		CTRL_THROTTLE_HI
+	};
+	static int dec[] = {10, 5, 1};
+	unsigned int trip_index = THERMAL_TRIP_PRIV_TO_INT(trip->priv);
+	int retry_cnt = 0, rdata;
+
+	if (id >= TRIP_NUM)
+		return -EINVAL;
+
+	if (trip_index > 3)
+		return -EINVAL;
+
+	if (temp < 0 || temp > 125)
+		return -EINVAL;
+
+	temp *= 10;
+
+RETRY:
+	/* Set trigger temp */
+	val = DECI_CELSIUS_TO_DECI_KELVIN(temp);
+
+	ret = THERM_WRITE(&zone->device, ctrl[trip_index], id, &val);
+
+	/* Set clear temp */
+	val -= dec[id];
+	if (!ret)
+		ret = THERM_WRITE(&zone->device, ctrl[trip_index] + 1, id, &val);
+
+	if (!THERM_READ(&zone->device, ctrl[trip_index], id, &rdata)) {
+		rdata = DECI_KELVIN_TO_CELSIUS(rdata) * 10;
+		if (rdata != temp && retry_cnt < 3) {
+			retry_cnt++;
+			goto RETRY;
+		}
+	}
+
+	return ret;
+}
+
+#else
 
 static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 {
@@ -299,12 +349,19 @@ static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 		CTRL_THROTTLE_HI
 	};
 	static int dec[] = {10, 5, 1};
+	int retry_cnt = 0, rdata;
 
 	if (id >= TRIP_NUM)
 		return -EINVAL;
 
+	if (temp < 0 || temp > 125)
+		return -EINVAL;
+
+	temp *= 10;
+
+RETRY:
 	/* Set trigger temp */
-	val = MILLI_CELSIUS_TO_DECI_KELVIN(temp);
+	val = DECI_CELSIUS_TO_DECI_KELVIN(temp);
 	ret = THERM_WRITE(&zone->device, ctrl[trip], id, &val);
 
 	/* Set clear temp */
@@ -312,8 +369,17 @@ static int set_trip_temp(struct thermal_zone_device *zone, int trip, int temp)
 	if (!ret)
 		ret = THERM_WRITE(&zone->device, ctrl[trip] + 1, id, &val);
 
+	if (!THERM_READ(&zone->device, ctrl[trip], id, &rdata)) {
+		rdata = DECI_KELVIN_TO_CELSIUS(rdata) * 10;
+		if (rdata != temp && retry_cnt < 3) {
+			retry_cnt++;
+			goto RETRY;
+		}
+	}
+
 	return ret;
 }
+#endif
 
 static int get_max_state(struct thermal_cooling_device *cdev,
 			 unsigned long *state)
@@ -323,7 +389,7 @@ static int get_max_state(struct thermal_cooling_device *cdev,
 	int max = 0;
 
 	ret = THERM_READ(&cdev->device, CTRL_MAX, id, &max);
-	*state = DECI_KELVIN_TO_MILLI_CELSIUS(max);
+	*state = DECI_KELVIN_TO_CELSIUS(max);
 
 	return ret;
 }
@@ -336,7 +402,7 @@ static int get_cur_state(struct thermal_cooling_device *cdev,
 	int temp = 0;
 
 	ret = THERM_READ(&cdev->device, CTRL_VALUE, id, &temp);
-	*state = DECI_KELVIN_TO_MILLI_CELSIUS(temp);
+	*state = DECI_KELVIN_TO_CELSIUS(temp);
 
 	return ret;
 }
@@ -359,15 +425,21 @@ devm_thermal_cooling_device_register(struct device *dev,
 {
 	struct thermal_cooling_device **ptr, *tcd;
 
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+
+	ptr = devres_alloc(thermal_cooling_device_release, sizeof(struct thermal_cooling_device), GFP_KERNEL);
+
+#else
 	ptr = devres_alloc(thermal_cooling_device_release, sizeof(*ptr),
 			   GFP_KERNEL);
+#endif
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
 	tcd = thermal_cooling_device_register(type, devdata, ops);
 	if (IS_ERR(tcd)) {
 		devres_free(ptr);
-		return tcd;
+		return NULL;
 	}
 
 	*ptr = tcd;
@@ -381,26 +453,43 @@ static void thermal_zone_device_release(struct device *dev, void *res)
 	thermal_zone_device_unregister(*(struct thermal_zone_device **)res);
 }
 
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
 static struct thermal_zone_device *
 devm_thermal_zone_device_register(struct device *dev,
-				  const char *type, int trips, int mask, void *devdata,
+				  const char *type, struct thermal_trip *tz_trips, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
 	struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
+#else
+static struct thermal_zone_device *
+devm_thermal_zone_device_register(struct device *dev,
+				const char *type, int trips, int mask, void *devdata,
+	struct thermal_zone_device_ops *ops,
+	struct thermal_zone_params *tzp,
+	int passive_delay, int polling_delay)
+#endif
 {
 	struct thermal_zone_device **ptr, *tzd;
 
-	ptr = devres_alloc(thermal_zone_device_release, sizeof(*ptr),
-			   GFP_KERNEL);
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+
+	ptr = devres_alloc(thermal_zone_device_release, sizeof(struct thermal_zone_device), GFP_KERNEL);
+#else
+	ptr = devres_alloc(thermal_zone_device_release, sizeof(*ptr), GFP_KERNEL);
+#endif
+
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	tzd = thermal_zone_device_register(type, trips, mask,
-					   devdata, ops, tzp,
-					   passive_delay, polling_delay);
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+	tzd = thermal_zone_device_register_with_trips(type, tz_trips, trips, devdata, ops, tzp, passive_delay, polling_delay);
+#else
+	tzd = thermal_zone_device_register(type, trips, mask, devdata, ops, tzp, passive_delay, polling_delay);
+#endif
+
 	if (IS_ERR(tzd)) {
 		devres_free(ptr);
-		return tzd;
+		return NULL;
 	}
 
 	*ptr = tzd;
@@ -411,8 +500,10 @@ devm_thermal_zone_device_register(struct device *dev,
 
 static struct thermal_zone_device_ops zone_ops = {
 	.get_temp = get_temp,
+#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
 	.get_trip_type = get_trip_type,
 	.get_trip_temp = get_trip_temp,
+#endif
 	.set_trip_temp = set_trip_temp,
 };
 
@@ -426,6 +517,16 @@ static struct thermal_zone_params zone_params = {
 	.governor_name = "user_space",
 	.no_hwmon      = true,
 };
+
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+
+static struct thermal_trip tz_trips[] = {
+	{ .type = THERMAL_TRIP_CRITICAL },
+	{ .type =  THERMAL_TRIP_CRITICAL },
+	{ .type = THERMAL_TRIP_HOT },
+};
+
+#endif
 
 static int probe(struct platform_device *pdev)
 {
@@ -441,6 +542,9 @@ static int probe(struct platform_device *pdev)
 		{ CTRL_POWEROFF, CTRL_POWEROFF_HI, CTRL_POWEROFF_LO },
 		{ CTRL_THROTTLE, CTRL_THROTTLE_HI, CTRL_THROTTLE_LO },
 	};
+
+	if (IS_ERR(dev))
+		return -ENODEV;
 
 	/* Confirm if eiois200_core exist */
 	if (!dev_get_drvdata(dev->parent)) {
@@ -480,20 +584,38 @@ static int probe(struct platform_device *pdev)
 
 		/* Get all trip value */
 		for (trip = 0 ; trip < TRIP_NUM ; trip++) {
-			if (THERM_READ(dev, ctrl[trip].temp, ch, &hi[trip]))
+			if (THERM_READ(dev, ctrl[trip].temp, ch, &hi[trip])) {
 				dev_err_probe(dev, -EIO, "Read thermal_%ld error\n",
 					      ch);
+				continue;
+			}
 
-			temps[trip] = DECI_KELVIN_TO_MILLI_CELSIUS(hi[trip]);
+			temps[trip] = DECI_KELVIN_TO_CELSIUS(hi[trip]);
+
+
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+			tz_trips[trip].flags = THERMAL_TRIP_FLAG_RW_TEMP;
+			tz_trips[trip].priv = THERMAL_INT_TO_TRIP_PRIV(trip);
+			tz_trips[trip].temperature = DECI_KELVIN_TO_CELSIUS(hi[trip]);
+#endif
 		}
 
 		/* Create zone */
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+		zone = devm_thermal_zone_device_register(
+				dev, "eiois200_thermal", tz_trips, TRIP_NUM,
+				(1 << TRIP_NUM) - 1, (void *)ch,
+				&zone_ops, &zone_params,
+				THERMAL_PASSIVE_DELAY,
+				THERMAL_POLLING_DELAY);
+#else
 		zone = devm_thermal_zone_device_register(
 				dev, "eiois200_thermal", TRIP_NUM,
 				(1 << TRIP_NUM) - 1, (void *)ch,
 				&zone_ops, &zone_params,
 				THERMAL_PASSIVE_DELAY,
 				THERMAL_POLLING_DELAY);
+#endif
 		if (!zone)
 			return PTR_ERR(zone);
 
@@ -515,14 +637,33 @@ static int probe(struct platform_device *pdev)
 						dev, "Processor",
 						(void *)TO_DRVDATA(ch, trip),
 						&cooling_ops);
-			if (IS_ERR(cdev[trip]))
+			if (IS_ERR(cdev[trip])) {
 				dev_err_probe(dev, PTR_ERR(cdev[trip]),
 					      "Create thermal cooling device failed:%ld\n",
 					      PTR_ERR(cdev[trip]));
 
+			}
+
+#if KERNEL_VERSION(6, 14, 0) <= LINUX_VERSION_CODE
+			struct cooling_spec cool_spec;
+
+			cool_spec.upper = hi;
+			cool_spec.lower =  lo;
+			cool_spec.weight = THERMAL_WEIGHT_DEFAULT;
+
+			ret = thermal_bind_cdev_to_trip(
+					zone,
+					&zone->trips[trip],
+					cdev[trip],
+					&cool_spec);
+
+#else
+
+
 			ret = thermal_zone_bind_cooling_device(
 					zone, trip, cdev[trip],
 					hi, lo, THERMAL_WEIGHT_DEFAULT);
+#endif
 			if (ret)
 				dev_err_probe(dev, ret, "Error binding cooling device\n");
 

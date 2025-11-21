@@ -254,15 +254,15 @@ function SmartFanSub1Menu
 			echo "$val" > "$tz_dev/PWM"
 			;;
 		"4")
-			read -p"Low Stop Limit (0 ~ 255 milli-Celsius): " val
+			read -p"Low Stop Limit (0 ~ 255 Celsius): " val
 			echo ${val}000 > $tz_dev/trip_point_2_temp
 			;;
 		"5")
-			read -p"Low Limit (0 ~ 255 milli-Celsius): " val
+			read -p"Low Limit (0 ~ 255 Celsius): " val
 			echo ${val}000 > $tz_dev/trip_point_1_temp
 			;;
 		"6")
-			read -p"High Stop Limit (0 ~ 255 milli-Celsius): " val
+			read -p"High Stop Limit (0 ~ 255 Celsius): " val
 			echo ${val}000 > $tz_dev/trip_point_0_temp
 			;;
 		"7")
@@ -322,10 +322,11 @@ function ThermalSub1Menu
 		echo -e "0) Back to Main menu"
 		echo -e "1) Protection zone	:" ${names[$i]}
 		echo -e " ) Sensor		:" `cat ${fs}/name`
-		echo -e " ) Temperature		:" $((temp / 10)).$((temp % 10))
+		echo -e " ) Temperature		:" $temp
 		echo -e " ) Type			:" `cat $fs/trip_point_${act}_type`
 		echo -e "2) Event Type		:" ${ACTS[$act]}
-		echo -e "3) Trigger Temperature	:" $((trigger / 10)).$((trigger % 10))
+		echo -e "3) Trigger Temperature	:" $trigger
+
 		echo -e "4) State		:" $state
 		echo -e
 		read -t1 -n1 -p"Select the item you want to set: " sel
@@ -346,7 +347,7 @@ function ThermalSub1Menu
 			;;
 		"3")
 			# Temp unit is 0.1 degree-Celsius
-			echo -e "Trigger Temperature (0 ~ 1250 Centi-Celsius): \c"
+			echo -e "Trigger Temperature (0 ~ 125 Celsius): \c"
 			read trigger
 
 			echo $trigger > $trigger_fs
@@ -399,7 +400,7 @@ function GpioSub1Menu
 		echo ${num} > ${SYSFS}/unexport
 
 		# Show menu
-		show_title		
+		show_title
 		printf "GPIO\n\n"
 		printf "0) Back to Main menu\n"
 		printf "1) GPIO Pin	: %d (GPIO%d)\n" $shift $(($base + $shift))
@@ -767,8 +768,8 @@ function SMBusSub1Menu
 ################################################################################
 function I2CSub2Probe
 {
-	echo -e "\nAddress of existed devices (Hex):" \
-	      `i2cdetect -y $1 | sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
+	echo "Address of existed devices (Hex):" \
+		`i2cdetect -y $1 |  sed '1 d' | cut -c5-51 | tr '\n' ' '| sed 's/-- //g' | sed 's/  //g'`
 	echo -e
 	read -n1 -t2 -p"Press ENTER to continue..." probe_value
 }
@@ -1128,7 +1129,7 @@ function MainMenu
 		 9) InfoSub1Menu;;
 		esac
 	done
-	
+
 	# Remove drivers
 	for ((i=${#loads[@]}; i > 0 ; i--)); do
 		rmmod ${loads[i-1]}

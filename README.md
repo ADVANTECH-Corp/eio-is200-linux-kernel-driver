@@ -21,7 +21,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## OS supported
 > These drivers have been verified on:
  ```
-    Ubuntu 20.04 and 22.04 with Linux kernel versions 5.15, 5.19, and 6.2.
+    Ubuntu 20.04, 22.04 and 24.04 with Linux kernel versions 5.15, 5.19, 6.2 and 6.14.
  ```
 ## Device supported
 > These drivers have been verified on:

@@ -384,14 +384,14 @@ static int bus_stop(struct dev_i2c *i2c)
 static void switch_i2c_mode(struct dev_i2c *i2c, bool on)
 {
 	u32 tmp;
-	
+
 	if (IS_I2C(i2c))
 		return;
 
 	I2C_READ(i2c, SMB_REG_HC2, &tmp);
-	I2C_WRITE(i2c, SMB_REG_HC2, 
-		  on ? tmp |  SMB_HC2_I2C_EN | SMB_HC2_SRESET
-		     : tmp & ~SMB_HC2_I2C_EN);
+	I2C_WRITE(i2c, SMB_REG_HC2,
+			on ? tmp |  SMB_HC2_I2C_EN | SMB_HC2_SRESET
+			: tmp & ~SMB_HC2_I2C_EN);
 }
 
 static void i2c_clear(struct dev_i2c *i2c)
@@ -565,7 +565,7 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 	ret = wait_ready(i2c);
 	if (ret)
 		goto exit;
-	
+
 	switch_i2c_mode(i2c, false);
 	addr = I2C_ENC_7BIT_ADDR(addr) | is_read;
 	I2C_WRITE(i2c, SMB_REG_HADDR, addr);
@@ -606,7 +606,7 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 
 		if (is_read)
 			break;
-					
+
 		// BLOCK need to set cmd type first.
 		I2C_READ(i2c, SMB_REG_HC, &tmp);
 		tmp &= ~(0x07 << SMB_HC_CMD_SHIFT);
@@ -696,10 +696,10 @@ static int smb_access(struct dev_i2c *i2c, u8 addr, bool is_read, u8 cmd,
 		I2C_READ(i2c, SMB_REG_HD1, (u32 *)data->block + 1);
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-		if (!is_read) 
+		if (!is_read)
 			break;
 
-		dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA\n");			
+		dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA\n");
 		I2C_READ(i2c, SMB_REG_HD0, &len);
 		len = min(len, I2C_SMBUS_BLOCK_MAX);
 		data->block[0] = len;
@@ -733,7 +733,7 @@ static int i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	ret = wait_ready(i2c);
 	if (ret)
 		goto exit;
-	
+
 	switch_i2c_mode(i2c, true);
 
 	dev_dbg(i2c->dev, "Transmit %d I2C messages\n", num);
@@ -999,9 +999,15 @@ static int eiois200_i2c_probe(struct platform_device *pdev)
 		}
 
 		i2c->adap.owner = THIS_MODULE;
+
+#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
 		i2c->adap.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+#else
+		i2c->adap.class = I2C_CLASS_HWMON;
+#endif
+
 		i2c->adap.algo = &algo;
-		i2c->adap.nr = ch;
+		i2c->adap.nr = -1;
 		i2c->adap.dev.parent = dev;
 		rt_mutex_init(&i2c->lock);
 
@@ -1019,13 +1025,18 @@ static int eiois200_i2c_probe(struct platform_device *pdev)
 		eio_i2c->dev_i2c[ch] = i2c;
 	}
 
+	platform_set_drvdata(pdev, eio_i2c);
+
 	return 0;
 
 cleanup:
+
 	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
 		if (eio_i2c->dev_i2c[ch]) {
-			i2c_del_adapter(&eio_i2c->dev_i2c[ch]->adap);
-			kfree(eio_i2c->dev_i2c[ch]);
+			if (ret	== 0) {
+				i2c_del_adapter(&eio_i2c->dev_i2c[ch]->adap);
+				kfree(eio_i2c->dev_i2c[ch]);
+			}
 			eio_i2c->dev_i2c[ch] = NULL;
 		}
 	}
@@ -1033,10 +1044,23 @@ cleanup:
 	return ret;
 }
 
+
+#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
 static int eiois200_i2c_remove(struct platform_device *pdev)
+#else
+static void eiois200_i2c_remove(struct platform_device *pdev)
+#endif
 {
 	struct eiois200_i2c *eio_i2c = platform_get_drvdata(pdev);
 	enum i2c_ch ch;
+
+#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
+	if (!eio_i2c)
+		return 0;
+#else
+	if (!eio_i2c)
+		return;
+#endif
 
 	for (ch = i2c0; ch < MAX_I2C_SMB; ch++) {
 		if (eio_i2c->dev_i2c[ch]) {
@@ -1046,7 +1070,9 @@ static int eiois200_i2c_remove(struct platform_device *pdev)
 		}
 	}
 
+#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static struct platform_driver eiois200_i2c_driver = {
